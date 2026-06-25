@@ -10,9 +10,27 @@ const supabaseAdmin = createClient(
 async function getCallerProfile(request) {
   const token = request.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return null
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-  if (!user) return null
-  const { data } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
+
+  // auth.getUser(jwt) silently fails when persistSession:false — call the REST API directly
+  const authRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    },
+  })
+
+  if (!authRes.ok) {
+    const body = await authRes.text()
+    console.log('[getCallerProfile] auth REST failed:', authRes.status, body)
+    return null
+  }
+
+  const json = await authRes.json()
+  console.log('[getCallerProfile] auth user id:', json?.id)
+  const { id: userId } = json
+  if (!userId) { console.log('[getCallerProfile] no userId'); return null }
+
+  const { data } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
   return data
 }
 
@@ -23,6 +41,7 @@ function isAdminOrManagement(caller) {
 // POST /api/admin/users — create a new user + profile
 export async function POST(request) {
   const caller = await getCallerProfile(request)
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isAdminOrManagement(caller)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -62,6 +81,7 @@ export async function POST(request) {
 // PUT /api/admin/users — update a user's profile (role, module toggles)
 export async function PUT(request) {
   const caller = await getCallerProfile(request)
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isAdminOrManagement(caller)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -97,6 +117,7 @@ export async function PUT(request) {
 // PATCH /api/admin/users — update a user's password
 export async function PATCH(request) {
   const caller = await getCallerProfile(request)
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isAdminOrManagement(caller)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -123,6 +144,7 @@ export async function PATCH(request) {
 // DELETE /api/admin/users — delete a user and their profile
 export async function DELETE(request) {
   const caller = await getCallerProfile(request)
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isAdminOrManagement(caller)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

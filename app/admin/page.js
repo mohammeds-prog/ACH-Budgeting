@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import AppHeader from '@/components/AppHeader'
 import { supabase } from '@/lib/supabase'
 import { useProfile } from '@/lib/profileContext'
@@ -10,13 +11,14 @@ import { ROLES, getRoleInfo } from '@/lib/permissions'
 function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) {
   const [open, setOpen] = useState(false)
   const [dropPos, setDropPos] = useState(null)
+  const wrapRef = useRef(null)
   const btnRef = useRef(null)
   const options = filterAdmin ? ROLES.filter((r) => r.value !== 'admin') : ROLES
   const current = getRoleInfo(value)
 
   useEffect(() => {
     if (!open) return
-    function handleClick(e) { if (!btnRef.current?.contains(e.target)) setOpen(false) }
+    function handleClick(e) { if (!wrapRef.current?.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
@@ -31,7 +33,7 @@ function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) 
   }
 
   return (
-    <div className="inline-block">
+    <div ref={wrapRef} className="inline-block">
       <button
         ref={btnRef}
         type="button"
@@ -133,6 +135,7 @@ function SetPasswordModal({ user, onClose }) {
         body: JSON.stringify({ userId: user.id, password }),
       })
       const json = await res.json()
+      if (res.status === 401) { await supabase.auth.signOut(); window.location.href = '/login'; return }
       if (!res.ok) { setError(json.error); return }
       logActivity({ action: 'update', module: 'Admin', description: `Set password for ${user.full_name || user.email}`, metadata: { userId: user.id } })
       setDone(true)
@@ -305,6 +308,7 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
 }
 
 export default function AdminPage() {
+  const router  = useRouter()
   const profile = useProfile()
   const isAdmin      = profile?.role === 'admin'
   const isManagement = profile?.role === 'management'
@@ -334,6 +338,7 @@ export default function AdminPage() {
         body: JSON.stringify({ userId: id, ...updates }),
       })
       const json = await res.json()
+      if (res.status === 401) { await supabase.auth.signOut(); router.replace('/login'); return }
       if (!res.ok) { console.error('updateProfile failed:', res.status, json); return }
     } catch (err) { console.error('updateProfile error:', err); return }
     setProfiles((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p))
@@ -352,6 +357,7 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ userId }),
       })
+      if (res.status === 401) { await supabase.auth.signOut(); window.location.href = '/login'; return }
       if (res.ok) {
         setProfiles((prev) => prev.filter((p) => p.id !== userId))
         setConfirmDeleteId(null)

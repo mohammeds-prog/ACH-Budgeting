@@ -101,12 +101,13 @@ function InsuranceSelect({ value, onChange, options = [], placeholder = 'Insuran
 function CustomSelect({ value, onChange, options, style, className }) {
   const [open, setOpen] = useState(false)
   const [dropPos, setDropPos] = useState(null)
+  const wrapRef = useRef(null)
   const btnRef = useRef(null)
   const display = options.find((o) => o.value === value)?.label ?? value
 
   useEffect(() => {
     if (!open) return
-    function outside(e) { if (!btnRef.current?.contains(e.target)) setOpen(false) }
+    function outside(e) { if (!wrapRef.current?.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', outside)
     return () => document.removeEventListener('mousedown', outside)
   }, [open])
@@ -120,7 +121,7 @@ function CustomSelect({ value, onChange, options, style, className }) {
   }
 
   return (
-    <div className={`inline-block ${className || ''}`} style={style}>
+    <div ref={wrapRef} className={`inline-block ${className || ''}`} style={style}>
       <button
         ref={btnRef}
         type="button"

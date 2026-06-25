@@ -1,0 +1,259 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
+import { useProfile } from '@/lib/profileContext'
+import { extractInsuranceName } from '@/lib/achParser'
+import Select from './Select'
+
+const EMPTY = { postingDate: '', details: '', description: '', insuranceName: '', amount: '', fromLocation: '', location: '', match: '', status: '', initials: '', splits: null }
+const EMPTY_SPLIT = { location: '', amount: '' }
+
+const inp    = 'w-full px-3 py-2 text-sm bg-slate-800/80 border border-white/[0.08] rounded-xl text-white placeholder:text-white/25 outline-none transition-all duration-150 focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 [color-scheme:dark]'
+const inpErr = 'border-red-500/50 focus:border-red-500/60 focus:ring-red-500/20'
+
+const DETAILS_OPTS  = [{ value: 'CREDIT', label: 'CREDIT' }, { value: 'DEBIT', label: 'DEBIT' }]
+const MATCH_OPTS    = [{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }, { value: 'Partial', label: 'Partial' }]
+const LOCATION_OPTS = LOCATIONS.map((l) => ({ value: l, label: l }))
+const STATUS_OPTS   = ACH_STATUSES.map((s) => ({ value: s, label: s }))
+
+function deriveInitials(profile) {
+  const name = profile?.full_name?.trim()
+  if (name) {
+    const parts = name.split(/\s+/)
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0].slice(0, 2).toUpperCase()
+  }
+  const email = profile?.email || ''
+  return email.slice(0, 2).toUpperCase()
+}
+
+export default function EntryModal({ entry, onSave, onClose }) {
+  const profile = useProfile()
+  const [form, setForm] = useState(EMPTY)
+  const [errors, setErrors] = useState({})
+  const [isSplit, setIsSplit] = useState(false)
+  const [splitRows, setSplitRows] = useState([{ ...EMPTY_SPLIT }])
+
+  useEffect(() => {
+    if (entry) {
+      setForm({ ...EMPTY, ...entry })
+      if (entry.splits !== null && entry.splits !== undefined) {
+        setIsSplit(true)
+        setSplitRows(entry.splits.length > 0
+          ? entry.splits.map((s) => ({ location: s.location || '', amount: String(s.amount ?? '') }))
+          : [{ ...EMPTY_SPLIT }])
+      } else {
+        setIsSplit(false)
+        setSplitRows([{ ...EMPTY_SPLIT }])
+      }
+    } else {
+      setForm({ ...EMPTY, initials: deriveInitials(profile) })
+      setIsSplit(false)
+      setSplitRows([{ ...EMPTY_SPLIT }])
+    }
+    setErrors({})
+  }, [entry, profile])
+
+  function set(key, value) {
+    setForm((p) => ({ ...p, [key]: value }))
+    if (errors[key]) setErrors((p) => ({ ...p, [key]: '' }))
+  }
+
+  function toggleSplit(val) {
+    setIsSplit(val)
+    if (!val) setSplitRows([{ ...EMPTY_SPLIT }])
+  }
+
+  function setSplitRow(i, field, value) {
+    setSplitRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
+  }
+
+  function addSplitRow() {
+    setSplitRows((prev) => [...prev, { ...EMPTY_SPLIT }])
+  }
+
+  function removeSplitRow(i) {
+    setSplitRows((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  function validate() {
+    const e = {}
+    if (!form.postingDate) e.postingDate = 'Required'
+    if (form.amount === '' || form.amount === null) e.amount = 'Required'
+    return e
+  }
+
+  function handleSubmit(ev) {
+    ev.preventDefault()
+    const e = validate()
+    if (Object.keys(e).length) { setErrors(e); return }
+    // Save filled rows only; empty array = split marked but not yet allocated
+    const filledRows = splitRows.filter((r) => r.location && r.amount !== '')
+    const splits = isSplit ? filledRows.map((r) => ({ location: r.location, amount: Number(r.amount) })) : null
+    onSave({ ...form, amount: Number(form.amount), id: entry?.id, location: isSplit ? '' : form.location, splits })
+  }
+
+  const splitTotal  = isSplit ? splitRows.reduce((s, r) => s + (Number(r.amount) || 0), 0) : 0
+  const entryAmount = Number(form.amount) || 0
+  const splitDiff   = entryAmount - splitTotal
+  const splitOk     = Math.abs(splitDiff) < 0.01
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-lg z-10 overflow-y-auto max-h-[90vh]">
+
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07]">
+          <div>
+            <h2 className="text-base font-semibold text-white">{entry ? 'Edit Entry' : 'Add ACH Entry'}</h2>
+            <p className="text-xs text-white/35 mt-0.5">Fill in the transaction details below</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Posting Date" required error={errors.postingDate}>
+              <input type="date" value={form.postingDate} onChange={(e) => set('postingDate', e.target.value)} className={`${inp} ${errors.postingDate ? inpErr : ''}`} />
+            </F>
+            <F label="Amount ($)" required error={errors.amount}>
+              <input type="number" step="0.01" value={form.amount} onChange={(e) => set('amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={`${inp} ${errors.amount ? inpErr : ''}`} />
+            </F>
+          </div>
+
+          <F label="Details">
+            <Select value={form.details} onChange={(v) => set('details', v)} placeholder="—" options={DETAILS_OPTS} wide />
+          </F>
+
+          <F label="Description">
+            <textarea
+              value={form.description}
+              onChange={(e) => {
+                const desc = e.target.value
+                set('description', desc)
+                if (!form.insuranceName) {
+                  const detected = extractInsuranceName(desc)
+                  if (detected) set('insuranceName', detected)
+                }
+              }}
+              placeholder="Paste ACH description here…"
+              rows={3}
+              className={`${inp} resize-none`}
+            />
+          </F>
+
+          <F label="Insurance Name">
+            <div className="flex gap-2">
+              <input type="text" value={form.insuranceName} onChange={(e) => set('insuranceName', e.target.value)} placeholder="e.g. Delta Dental, Cigna…" className={`${inp} flex-1`} />
+              <button
+                type="button"
+                onClick={() => {
+                  const detected = extractInsuranceName(form.description)
+                  if (detected) set('insuranceName', detected)
+                }}
+                title="Auto-detect from description"
+                className="px-2.5 py-1.5 text-xs text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] rounded-xl transition-all shrink-0"
+              >
+                Detect
+              </button>
+            </div>
+          </F>
+
+          <F label="From Location">
+            <Select value={form.fromLocation} onChange={(v) => set('fromLocation', v)} placeholder="Select location…" options={LOCATION_OPTS} wide />
+          </F>
+
+          {/* To Location with split toggle */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-widest text-white/40">To Location</label>
+              <button type="button" onClick={() => toggleSplit(!isSplit)} className="flex items-center gap-1.5">
+                <div className={`relative w-7 h-4 rounded-full transition-colors ${isSplit ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                  <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-150 ${isSplit ? 'translate-x-3' : 'translate-x-0'}`} />
+                </div>
+                <span className="text-[11px] font-medium text-white/40">Split payment</span>
+              </button>
+            </div>
+
+            {!isSplit ? (
+              <Select value={form.location} onChange={(v) => set('location', v)} placeholder="Select location…" options={LOCATION_OPTS} wide />
+            ) : (
+              <div className="space-y-2">
+                {splitRows.map((row, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Select value={row.location} onChange={(v) => setSplitRow(i, 'location', v)} placeholder="Location…" options={LOCATION_OPTS} wide />
+                    </div>
+                    <div className="w-28 shrink-0">
+                      <input type="number" step="0.01" value={row.amount} onChange={(e) => setSplitRow(i, 'amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={inp} />
+                    </div>
+                    {splitRows.length > 1 && (
+                      <button type="button" onClick={() => removeSplitRow(i)} className="p-1.5 text-slate-600 hover:text-red-400 transition-colors shrink-0">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-0.5">
+                  <button type="button" onClick={addSplitRow} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Add location
+                  </button>
+                  {entryAmount > 0 && (
+                    <span className={`text-xs tabular-nums ${splitOk ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {splitOk
+                        ? `✓ $${splitTotal.toFixed(2)} allocated`
+                        : `$${splitTotal.toFixed(2)} / $${entryAmount.toFixed(2)} — ${splitDiff > 0 ? `$${splitDiff.toFixed(2)} unassigned` : `$${Math.abs(splitDiff).toFixed(2)} over`}`}
+                    </span>
+                  )}
+                </div>
+                {errors.splits && <p className="text-[11px] text-red-400 font-medium mt-1">{errors.splits}</p>}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <F label="Match">
+              <Select value={form.match} onChange={(v) => set('match', v)} placeholder="—" options={MATCH_OPTS} wide />
+            </F>
+            <F label="Status & Initials">
+              <div className="flex flex-col gap-2">
+                <Select value={form.status} onChange={(v) => set('status', v)} placeholder="Status…" options={STATUS_OPTS} wide />
+                <input type="text" value={form.initials} onChange={(e) => set('initials', e.target.value)} placeholder="Initials e.g. JD" maxLength={10} className={inp} />
+              </div>
+            </F>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.07]">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-white/[0.08] hover:border-white/20 rounded-xl transition-all">Cancel</button>
+            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-900/30 active:scale-[0.98]">
+              {entry ? 'Save changes' : 'Add entry'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function F({ label, required, error, children }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold uppercase tracking-widest text-white/40 mb-1.5">
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      {children}
+      {error && <p className="mt-1 text-[11px] text-red-400 font-medium">{error}</p>}
+    </div>
+  )
+}

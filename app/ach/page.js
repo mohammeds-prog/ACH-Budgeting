@@ -743,7 +743,11 @@ export default function ACHPage() {
       {importModal && (
         <ImportModal
           title="Import ACH Entries"
-          subtitle="Paste or upload a CSV — column names must match the header row below"
+          subtitle={
+            selectedLocation !== ALL && selectedLocation !== CUSTOM
+              ? `Paste or upload a CSV — "Received By" will auto-fill as "${selectedLocation}" for rows missing that column`
+              : 'Paste or upload a CSV — column names must match the header row below'
+          }
           locationOptions={LOCATIONS}
           columns={[
             { key: 'postingDate', label: 'postingDate', required: true, example: '01/15/2025',
@@ -766,6 +770,11 @@ export default function ACHPage() {
               aliases: ['location', 'clinic', 'site', 'branch', 'office', 'store', 'department', 'dept', 'facility', 'unit', 'place'],
               validate: (v, locs) => !v || fuzzyLocation(v, locs) ? null : `Location not recognized: "${v}"`,
               transform: (v, locs) => v ? (fuzzyLocation(v, locs) || v) : null },
+            { key: 'fromLocation', label: 'fromLocation', required: false, example: 'Naperville',
+              aliases: ['fromlocation', 'from_location', 'receivedby', 'received_by', 'receivedat', 'receivedlocation', 'fromloc', 'bankaccount', 'bank'],
+              validate: (v, locs) => !v || fuzzyLocation(v, locs) ? null : `Location not recognized: "${v}"`,
+              transform: (v, locs) => v ? (fuzzyLocation(v, locs) || v) : null,
+              defaultValue: selectedLocation !== ALL && selectedLocation !== CUSTOM ? selectedLocation : undefined },
             { key: 'match', label: 'match', required: false, example: 'Yes',
               aliases: ['match', 'matched', 'reconciled', 'reconcile', 'cleared', 'verified', 'confirmed'],
               validate: (v) => !v || ['Yes', 'No', 'Partial'].includes(v) ? null : 'match must be Yes, No, or Partial' },

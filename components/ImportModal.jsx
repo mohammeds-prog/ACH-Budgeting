@@ -177,18 +177,21 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
         const rawVal = headerKey != null ? (rawRow[headerKey] ?? '') : ''
         const val = rawVal.trim()
 
-        if (col.required && !val) {
+        // use defaultValue when CSV doesn't have this column and a default is configured
+        const effectiveVal = val || (col.defaultValue ?? '')
+
+        if (col.required && !effectiveVal) {
           rowErrors.push(`"${col.key}" is required`)
           entry[col.key] = null
           return
         }
 
-        if (col.validate && val) {
-          const err = col.validate(val, locationOptions)
-          if (err) { rowErrors.push(err); entry[col.key] = val; return }
+        if (col.validate && effectiveVal) {
+          const err = col.validate(effectiveVal, locationOptions)
+          if (err) { rowErrors.push(err); entry[col.key] = effectiveVal; return }
         }
 
-        entry[col.key] = col.transform ? col.transform(val, locationOptions) : (val || null)
+        entry[col.key] = col.transform ? col.transform(effectiveVal, locationOptions) : (effectiveVal || null)
       })
 
       if (postProcess) postProcess(entry, rawRow, colMap)
@@ -304,7 +307,9 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                       <tr className="border-b border-white/[0.07]">
                         {columns.map((c) => (
                           <th key={c.key} className="px-3 py-2 text-left font-mono text-slate-400 whitespace-nowrap">
-                            {c.key}{c.required && <span className="text-red-400 ml-0.5">*</span>}
+                              {c.key}
+                              {c.required && <span className="text-red-400 ml-0.5">*</span>}
+                              {c.defaultValue != null && <span className="ml-1.5 text-[9px] font-sans font-semibold text-indigo-400/60 normal-case tracking-normal">auto</span>}
                           </th>
                         ))}
                       </tr>
@@ -400,11 +405,17 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                       <thead>
                         <tr className="border-b border-white/[0.05]">
                           <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-600 w-8">#</th>
-                          {columns.map((c) => (
-                            <th key={c.key} className={`px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap ${parsed.colMap[c.key] ? 'text-slate-500' : 'text-slate-800'}`}>
-                              {c.key}{!parsed.colMap[c.key] && c.required ? ' ⚠' : ''}
-                            </th>
-                          ))}
+                          {columns.map((c) => {
+                            const mapped = !!parsed.colMap[c.key]
+                            const autoFilled = !mapped && c.defaultValue != null
+                            return (
+                              <th key={c.key} className={`px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap ${mapped ? 'text-slate-500' : autoFilled ? 'text-indigo-400/70' : 'text-slate-800'}`}>
+                                {c.key}
+                                {!mapped && c.required ? ' ⚠' : ''}
+                                {autoFilled && <span className="ml-1 text-[9px] font-normal text-indigo-400/50 normal-case tracking-normal">auto</span>}
+                              </th>
+                            )
+                          })}
                           <th className="px-3 py-2 w-6" />
                         </tr>
                       </thead>
@@ -412,11 +423,17 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                         {previewRows.map(({ entry, errors, rowNum }) => (
                           <tr key={rowNum} className={`border-b border-white/[0.04] last:border-0 ${errors.length ? 'bg-red-500/[0.04]' : ''}`}>
                             <td className="px-3 py-2 text-slate-700 tabular-nums">{rowNum}</td>
-                            {columns.map((c) => (
-                              <td key={c.key} className="px-3 py-2 max-w-[140px] truncate text-slate-400 font-mono" title={String(entry[c.key] ?? '')}>
-                                {entry[c.key] != null && entry[c.key] !== '' ? String(entry[c.key]) : <span className="text-slate-800">—</span>}
-                              </td>
-                            ))}
+                            {columns.map((c) => {
+                              const isAutoFilled = !parsed.colMap[c.key] && c.defaultValue != null && entry[c.key] != null
+                              const display = entry[c.key] != null && entry[c.key] !== '' ? String(entry[c.key]) : null
+                              return (
+                                <td key={c.key} className="px-3 py-2 max-w-[140px] truncate font-mono" title={display ?? ''}>
+                                  {display
+                                    ? <span className={isAutoFilled ? 'text-indigo-300/60 italic' : 'text-slate-400'}>{display}</span>
+                                    : <span className="text-slate-800">—</span>}
+                                </td>
+                              )
+                            })}
                             <td className="px-3 py-2">
                               {errors.length > 0 && (
                                 <div className="group relative">

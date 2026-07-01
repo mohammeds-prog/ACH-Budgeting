@@ -13,7 +13,8 @@ const COLS = [
   { key: 'fromLocation',  label: 'Received By' },
   { key: 'location',      label: 'Belongs To' },
   { key: 'match',         label: 'Match' },
-  { key: 'status',        label: 'Initials' },
+  { key: 'status',        label: 'Status' },
+  { key: 'initials',      label: 'Initials' },
   { key: 'notes',         label: 'Notes' },
 ]
 
@@ -173,13 +174,20 @@ function AutoTextarea({ value, onChange, placeholder, style }) {
       onChange={onChange}
       placeholder={placeholder}
       rows={1}
-      className={`${iCell} resize-none overflow-hidden leading-relaxed`}
-      style={style}
+      className={`${iCell} resize-none leading-relaxed`}
+      style={{ overflowY: style?.maxHeight ? 'auto' : 'hidden', ...style }}
     />
   )
 }
 
-function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAllLocations, uniqueInsurers = [], canEditFull = true }) {
+function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAllLocations, uniqueInsurers = [], canEditFull = true, currentUserInitials = '' }) {
+  const initialsRequired = !!row.status && row.status !== 'Not Posted'
+  function handleStatusChange(v) {
+    onChange('status', v)
+    if (v && v !== 'Not Posted' && !row.initials?.trim() && currentUserInitials) {
+      onChange('initials', currentUserInitials)
+    }
+  }
   function handleKeyDown(e) {
     if (e.key === 'Escape') { onCancel(); return }
     if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA') {
@@ -202,7 +210,7 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
       </td>
       <td className="px-2 py-2">
         {canEditFull
-          ? <AutoTextarea value={row.description || ''} onChange={(e) => { onChange('description', e.target.value); if (!row.insuranceName) { const d = extractInsuranceName(e.target.value); if (d) onChange('insuranceName', d) } }} placeholder="Description…" style={{ minWidth: 200 }} />
+          ? <AutoTextarea value={row.description || ''} onChange={(e) => { onChange('description', e.target.value); if (!row.insuranceName) { const d = extractInsuranceName(e.target.value); if (d) onChange('insuranceName', d) } }} placeholder="Description…" style={{ minWidth: 200, maxHeight: 72 }} />
           : <span className="text-xs text-slate-500 px-1 line-clamp-2 max-w-[200px] block" title={row.description}>{row.description || '—'}</span>}
       </td>
       <td className="px-2 py-2">
@@ -221,30 +229,35 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
           : <span className="text-xs font-semibold text-emerald-400 px-1 tabular-nums">{row.amount ? `$${Number(row.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}</span>}
       </td>
       <td className="px-2 py-2">
-        <CustomSelect value={row.fromLocation || ''} onChange={(v) => onChange('fromLocation', v)} options={LOC_OPTIONS} style={{ minWidth: 110 }} />
+        {canEditFull
+          ? <CustomSelect value={row.fromLocation || ''} onChange={(v) => onChange('fromLocation', v)} options={LOC_OPTIONS} style={{ minWidth: 110 }} />
+          : <span className="text-xs text-slate-500 px-1">{shortLocation(row.fromLocation) || '—'}</span>}
       </td>
       <td className="px-2 py-2">
-        <div className="flex flex-col gap-1" style={{ minWidth: 200 }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (row.splits !== null) {
-                onChange('splits', null)
-              } else {
-                onChange('splits', row.location ? [{ location: row.location, amount: '' }] : [])
-                onChange('location', '')
-              }
-            }}
-            className="flex items-center gap-1.5 self-start"
-          >
-            <div className={`relative w-5 h-3 rounded-full transition-colors ${row.splits !== null ? 'bg-indigo-500' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-white shadow transition-transform duration-150 ${row.splits !== null ? 'translate-x-2' : ''}`} />
-            </div>
-            <span className="text-[10px] text-white/30">Split</span>
-          </button>
-          {row.splits === null ? (
-            <CustomSelect value={row.location || ''} onChange={(v) => onChange('location', v)} options={LOC_OPTIONS} style={{ minWidth: 110 }} />
-          ) : (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (row.splits !== null) {
+                  onChange('splits', null)
+                } else {
+                  onChange('splits', row.location ? [{ location: row.location, amount: '' }] : [])
+                  onChange('location', '')
+                }
+              }}
+              className="flex items-center gap-1 shrink-0"
+            >
+              <div className={`relative w-5 h-3 rounded-full transition-colors ${row.splits !== null ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                <div className={`absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-white shadow transition-transform duration-150 ${row.splits !== null ? 'translate-x-2' : ''}`} />
+              </div>
+              <span className="text-[10px] text-white/30">Split</span>
+            </button>
+            {row.splits === null && (
+              <CustomSelect value={row.location || ''} onChange={(v) => onChange('location', v)} options={LOC_OPTIONS} style={{ minWidth: 110 }} />
+            )}
+          </div>
+          {row.splits !== null && (
             <div className="space-y-1">
               {(row.splits.length > 0 ? row.splits : [{ location: '', amount: '' }]).map((split, i) => (
                 <div key={i} className="flex gap-1 items-center">
@@ -294,19 +307,27 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
         )}
       </td>
       <td className="px-2 py-2">
-        <div className="flex flex-col gap-1" style={{ minWidth: 110 }}>
-          <CustomSelect value={row.status || ''} onChange={(v) => onChange('status', v)} options={STATUS_OPTIONS(ACH_STATUSES)} />
-          <input type="text" value={row.initials || ''} onChange={(e) => onChange('initials', e.target.value)} placeholder="Initials…" maxLength={10} className={iCell} />
-        </div>
+        <CustomSelect value={row.status || ''} onChange={handleStatusChange} options={STATUS_OPTIONS(ACH_STATUSES)} style={{ minWidth: 110 }} />
       </td>
       <td className="px-2 py-2">
-        <AutoTextarea value={row.notes || ''} onChange={(e) => onChange('notes', e.target.value)} placeholder="Notes…" style={{ minWidth: 160 }} />
+        <input
+          type="text"
+          value={row.initials || ''}
+          onChange={(e) => onChange('initials', e.target.value)}
+          placeholder={initialsRequired ? 'Required…' : 'Initials…'}
+          maxLength={10}
+          className={`${iCell} ${initialsRequired && !row.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`}
+          style={{ minWidth: 80 }}
+        />
+      </td>
+      <td className="px-2 py-2">
+        <AutoTextarea value={row.notes || ''} onChange={(e) => onChange('notes', e.target.value)} placeholder="Notes…" style={{ minWidth: 140, maxHeight: 72 }} />
       </td>
       <td className="px-2 py-2 sticky right-0 z-10 bg-slate-900" style={{ boxShadow: '-4px 0 8px rgba(0,0,0,0.4)' }}>
         <div className="flex gap-1.5">
           <button
             onClick={onSave}
-            disabled={saving || !row.postingDate || row.amount === ''}
+            disabled={saving || !row.postingDate || row.amount === '' || (initialsRequired && !row.initials?.trim())}
             className="px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg disabled:opacity-40 transition-all whitespace-nowrap"
           >
             {saving ? '…' : 'Save'}
@@ -334,7 +355,20 @@ function Checkbox({ checked, indeterminate, onChange, className = '' }) {
   )
 }
 
-export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onDelete, onDeleteMany, onEditMany, editingId, editRow, onEditRowChange, onSaveEdit, onCancelEdit, saving, highlightIds, isAllLocations, currentLocation, uniqueInsurers = [], canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, showTransferComplete = false, onTransferComplete }) {
+function deriveInitials(profile) {
+  const name = (profile?.full_name || '').trim()
+  if (name) {
+    const parts = name.split(/\s+/)
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase()
+  }
+  const email = (profile?.email || '').split('@')[0]
+  return email.slice(0, 2).toUpperCase() || ''
+}
+
+export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onDelete, onDeleteMany, onEditMany, editingId, editRow, onEditRowChange, onSaveEdit, onCancelEdit, saving, highlightIds, isAllLocations, currentLocation, uniqueInsurers = [], canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, showTransferComplete = false, onTransferComplete, profile }) {
+  const currentUserInitials = deriveInitials(profile)
   const [confirmId,           setConfirmId]           = useState(null)
   const [confirmBulk,         setConfirmBulk]         = useState(false)
   const [bulkEditOpen,        setBulkEditOpen]        = useState(false)
@@ -463,7 +497,7 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                   const isCrossLocation = !isAllLocations && !!entry.fromLocation && entry.fromLocation !== currentLocation
 
                   if (editingId === entry.id) {
-                    return <EditRow key={entry.id} row={editRow} onChange={onEditRowChange} onSave={onSaveEdit} onCancel={onCancelEdit} saving={saving} selectionMode={selectionMode} isAllLocations={isAllLocations} uniqueInsurers={uniqueInsurers} canEditFull={canEditFull} />
+                    return <EditRow key={entry.id} row={editRow} onChange={onEditRowChange} onSave={onSaveEdit} onCancel={onCancelEdit} saving={saving} selectionMode={selectionMode} isAllLocations={isAllLocations} uniqueInsurers={uniqueInsurers} canEditFull={canEditFull} currentUserInitials={currentUserInitials} />
                   }
 
                   const isHighlighted = highlightIds?.has(entry.id)
@@ -569,16 +603,13 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">{toCell}</td>
                         <td className="px-4 py-3"><MatchBadge value={displayMatch} /></td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <StatusBadge value={entry.status} />
-                            {entry.initials && (
-                              <>
-                                <span className="text-slate-600 text-xs">|</span>
-                                <span className="text-xs font-mono text-slate-400">{entry.initials}</span>
-                              </>
-                            )}
-                          </div>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <StatusBadge value={entry.status} />
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {entry.initials
+                            ? <span className="text-xs font-mono text-slate-400">{entry.initials}</span>
+                            : <span className="text-slate-700">—</span>}
                         </td>
                         <td className="px-4 py-3 max-w-[200px]">
                           {editingNoteId === entry.id ? (
@@ -684,8 +715,8 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                               ? <span className="badge bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/15 text-[10px]">{shortLocation(split.location)}</span>
                               : <span className="text-slate-700">—</span>}
                           </td>
-                          {/* Match, Initials, Notes, Actions — empty */}
-                          <td colSpan={4} className="px-4 py-2" />
+                          {/* Match, Status, Initials, Notes, Actions — empty */}
+                          <td colSpan={5} className="px-4 py-2" />
                         </tr>
                       ))}
                     </Fragment>
@@ -907,6 +938,6 @@ function MatchBadge({ value }) {
 
 function StatusBadge({ value }) {
   if (!value) return <span className="text-slate-700 text-xs">—</span>
-  const map = { Posted: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20', Pending: 'bg-amber-500/15 text-amber-400 border-amber-500/20', Returned: 'bg-red-500/15 text-red-400 border-red-500/20' }
+  const map = { 'Posted': 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20', 'In Progress': 'bg-amber-500/15 text-amber-400 border-amber-500/20', 'Not Posted': 'bg-slate-600/30 text-slate-400 border-slate-600/30' }
   return <span className={`badge text-[10px] border ${map[value] ?? 'bg-slate-700 text-slate-300'}`}>{value}</span>
 }

@@ -91,11 +91,11 @@ const ROLE_CAPS = {
     { label: 'No Transfer Complete',        color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
   ],
   user: [
-    { label: 'Edit: Notes · Initials',      color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
-    { label: 'Edit: Status · Match',        color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
-    { label: 'Edit: Received By · Belongs', color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
-    { label: 'No Add · Delete · Import',    color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
-    { label: 'No Transfer Complete',        color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
+    { label: 'Edit: Notes · Initials',   color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
+    { label: 'Edit: Status · Match',     color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
+    { label: 'Edit: Belongs To',         color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
+    { label: 'No Add · Delete · Import', color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
+    { label: 'No Transfer Complete',     color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
   ],
   viewer: [
     { label: 'Read-only',              color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },

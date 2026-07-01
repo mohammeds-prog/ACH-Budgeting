@@ -109,7 +109,8 @@ export default function ACHPage() {
         if (selectedLocation !== ALL && selectedLocation !== CUSTOM) {
           const matchesDirect = e.location === selectedLocation
           const matchesSplit  = e.splits?.some((s) => s.location === selectedLocation)
-          if (!matchesDirect && !matchesSplit) return false
+          const matchesFrom   = e.fromLocation === selectedLocation
+          if (!matchesDirect && !matchesSplit && !matchesFrom) return false
         }
         const date = new Date(e.postingDate)
         if (filters.month && date.getMonth() + 1 !== Number(filters.month)) return false
@@ -155,7 +156,8 @@ export default function ACHPage() {
         if (selectedLocation !== ALL && selectedLocation !== CUSTOM) {
           const matchesDirect = e.location === selectedLocation
           const matchesSplit  = e.splits?.some((s) => s.location === selectedLocation)
-          if (!matchesDirect && !matchesSplit) return false
+          const matchesFrom   = e.fromLocation === selectedLocation
+          if (!matchesDirect && !matchesSplit && !matchesFrom) return false
         }
         if (selectedLocation === CUSTOM && filters.receivedBy?.length > 0 && !filters.receivedBy.includes(e.fromLocation)) return false
         if (selectedLocation === CUSTOM && filters.belongsTo?.length > 0) {
@@ -199,7 +201,8 @@ export default function ACHPage() {
       if (selectedLocation !== ALL && selectedLocation !== CUSTOM) {
         const matchesDirect = e.location === selectedLocation
         const matchesSplit  = e.splits?.some((s) => s.location === selectedLocation)
-        if (!matchesDirect && !matchesSplit) return false
+        const matchesFrom   = e.fromLocation === selectedLocation
+        if (!matchesDirect && !matchesSplit && !matchesFrom) return false
       }
       if (selectedLocation === CUSTOM && filters.receivedBy?.length > 0 && !filters.receivedBy.includes(e.fromLocation)) return false
       if (selectedLocation === CUSTOM && filters.belongsTo?.length > 0) {
@@ -223,16 +226,27 @@ export default function ACHPage() {
     })
   }, [entries, selectedLocation, filters.month, filters.year, filters.from, filters.to, filters.status, filters.search, filters.insurance, filters.receivedBy, filters.belongsTo])
 
-  // For a specific location tab, split entries should only count the portion allocated to that location
+  // For a specific location tab, only count amounts that *belong to* this location (not just received by it)
   function allocatedAmount(e) {
-    if (selectedLocation !== ALL && selectedLocation !== CUSTOM && e.splits?.length > 0) {
-      const split = e.splits.find((s) => s.location === selectedLocation)
-      return split ? Number(split.amount) : 0
+    if (selectedLocation !== ALL && selectedLocation !== CUSTOM) {
+      const matchesDirect = e.location === selectedLocation
+      const hasSplits     = e.splits?.length > 0
+      // entry only matches via fromLocation — it's received but not yet allocated
+      if (!matchesDirect && !hasSplits) return 0
+      if (hasSplits) {
+        const split = e.splits.find((s) => s.location === selectedLocation)
+        return split ? Number(split.amount) : 0
+      }
     }
     if (selectedLocation === CUSTOM && filters.belongsTo?.length > 0 && e.splits?.length > 0) {
       const relevant = e.splits.filter((s) => filters.belongsTo.includes(s.location))
       if (relevant.length > 0) return relevant.reduce((sum, s) => sum + Number(s.amount || 0), 0)
       return 0
+    }
+    // On All Locations: only count entries that have been allocated (Belongs To set or splits)
+    if (selectedLocation === ALL) {
+      if (e.splits?.length > 0) return e.splits.reduce((sum, s) => sum + Number(s.amount || 0), 0)
+      if (!e.location) return 0
     }
     return Number(e.amount || 0)
   }
@@ -652,6 +666,7 @@ export default function ACHPage() {
                 showTransferComplete={can(profile, 'ach_transfer_complete')}
                 onTransferComplete={handleTransferComplete}
                 onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}
+                profile={profile}
               />
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3 bg-white/[0.04] border border-white/[0.08] rounded-2xl">
@@ -712,6 +727,7 @@ export default function ACHPage() {
                   showTransferComplete={false}
                   onTransferComplete={handleTransferComplete}
                   onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}
+                  profile={profile}
                 />
               )}
               {tcTotalPages > 1 && (
@@ -766,8 +782,14 @@ export default function ACHPage() {
               aliases: ['amount', 'value', 'sum', 'total', 'charge', 'payment', 'transactionamount', 'txnamount', 'dollaramount', 'dollars', 'money', 'debit', 'credit'],
               validate: (v) => isNaN(parseAmount(v)) ? 'amount must be a number' : null,
               transform: (v) => parseAmount(v) },
-            { key: 'location', label: 'location', required: false, example: 'Romeoville',
-              aliases: ['location', 'clinic', 'site', 'branch', 'office', 'store', 'department', 'dept', 'facility', 'unit', 'place'],
+            { key: 'belongsTo', label: 'belongsTo', required: false, example: 'Romeoville',
+              aliases: [
+                'belongsto', 'belongs_to', 'belongstolocation', 'belongs to',
+                'tolocation', 'to_location', 'to location',
+                'location', 'clinic', 'site', 'branch', 'office', 'store',
+                'department', 'dept', 'facility', 'unit', 'place',
+                'assignedto', 'assigned_to', 'forlocation', 'destination',
+              ],
               validate: (v, locs) => !v || fuzzyLocation(v, locs) ? null : `Location not recognized: "${v}"`,
               transform: (v, locs) => v ? (fuzzyLocation(v, locs) || v) : null },
             { key: 'fromLocation', label: 'fromLocation', required: false, example: 'Naperville',
@@ -778,9 +800,10 @@ export default function ACHPage() {
             { key: 'match', label: 'match', required: false, example: 'Yes',
               aliases: ['match', 'matched', 'reconciled', 'reconcile', 'cleared', 'verified', 'confirmed'],
               validate: (v) => !v || ['Yes', 'No', 'Partial'].includes(v) ? null : 'match must be Yes, No, or Partial' },
-            { key: 'status', label: 'status', required: false, example: 'Pending',
+            { key: 'status', label: 'status', required: false, example: 'Not Posted',
               aliases: ['status', 'state', 'statuscode', 'condition'],
-              validate: (v) => !v || ACH_STATUSES.includes(v) ? null : `status must be one of: ${ACH_STATUSES.join(', ')}` },
+              validate: (v) => !v || ACH_STATUSES.includes(v) ? null : `status must be one of: ${ACH_STATUSES.join(', ')}`,
+              defaultValue: 'Not Posted' },
             { key: 'initials', label: 'initials', required: false, example: 'JD',
               aliases: ['initials', 'by', 'staff', 'processedby', 'handledby', 'agent', 'user', 'employee', 'emp', 'reviewer', 'operator', 'rep', 'who', 'donebyemp'] },
           ]}
@@ -798,6 +821,9 @@ export default function ACHPage() {
               const detected = extractInsuranceName(entry.description)
               if (detected) entry.insuranceName = detected
             }
+            // belongsTo in UI maps to location field in storage
+            entry.location = entry.belongsTo ?? null
+            delete entry.belongsTo
           }}
           onImport={async (rows) => {
             const saved = await bulkInsertEntries(rows)

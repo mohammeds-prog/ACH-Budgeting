@@ -231,23 +231,23 @@ export default function ACHPage() {
     if (selectedLocation !== ALL && selectedLocation !== CUSTOM) {
       const matchesDirect = e.location === selectedLocation
       const hasSplits     = e.splits?.length > 0
-      // entry only matches via fromLocation — it's received but not yet allocated
+      // entry only matches via fromLocation — received but not yet allocated
       if (!matchesDirect && !hasSplits) return 0
       if (hasSplits) {
         const split = e.splits.find((s) => s.location === selectedLocation)
         return split ? Number(split.amount) : 0
       }
     }
-    if (selectedLocation === CUSTOM && filters.belongsTo?.length > 0 && e.splits?.length > 0) {
-      const relevant = e.splits.filter((s) => filters.belongsTo.includes(s.location))
-      if (relevant.length > 0) return relevant.reduce((sum, s) => sum + Number(s.amount || 0), 0)
-      return 0
+    if (selectedLocation === CUSTOM && filters.belongsTo?.length > 0) {
+      if (e.splits?.length > 0) {
+        const relevant = e.splits.filter((s) => filters.belongsTo.includes(s.location))
+        return relevant.reduce((sum, s) => sum + Number(s.amount || 0), 0)
+      }
+      return filters.belongsTo.includes(e.location) ? Number(e.amount || 0) : 0
     }
-    // On All Locations: only count entries that have been allocated (Belongs To set or splits)
-    if (selectedLocation === ALL) {
-      if (e.splits?.length > 0) return e.splits.reduce((sum, s) => sum + Number(s.amount || 0), 0)
-      if (!e.location) return 0
-    }
+    // ALL tab or CUSTOM with no Belongs To filter: only count entries that have been allocated
+    if (e.splits?.length > 0) return e.splits.reduce((sum, s) => sum + Number(s.amount || 0), 0)
+    if (!e.location) return 0
     return Number(e.amount || 0)
   }
 
@@ -266,6 +266,7 @@ export default function ACHPage() {
     .filter((e) => {
       if (selectedLocation !== ALL && selectedLocation !== CUSTOM) return e.fromLocation === selectedLocation
       if (filters.receivedBy?.length > 0) return filters.receivedBy.includes(e.fromLocation)
+      if (selectedLocation === CUSTOM) return false
       return true
     })
     .reduce((sum, e) => sum + Number(e.amount || 0), 0)

@@ -403,6 +403,23 @@ export default function ACHPage() {
     }
   }
 
+  async function handleSaveSplit(entryId, splitIdx, changes) {
+    try {
+      const entry = entries.find((e) => e.id === entryId)
+      if (!entry) return
+      const updatedSplits = entry.splits.map((s, i) => i === splitIdx ? { ...s, ...changes } : s)
+      const allMatches = updatedSplits.map((s) => s.match || 'No')
+      let entryMatch = entry.match
+      if (allMatches.every((m) => m === 'Yes')) entryMatch = 'Yes'
+      else if (allMatches.some((m) => m === 'Yes' || m === 'Partial')) entryMatch = 'Partial'
+      else entryMatch = 'No'
+      const saved = await saveEntry({ ...entry, splits: updatedSplits, match: entryMatch })
+      setEntries((prev) => prev.map((e) => e.id === saved.id ? saved : e))
+    } catch {
+      alert('Failed to save split. Check your connection.')
+    }
+  }
+
   async function handleDeleteMany(ids) {
     try {
       await Promise.all(ids.map(deleteEntry))
@@ -663,6 +680,7 @@ export default function ACHPage() {
                 canEditFull={can(profile, 'ach_edit_full')}
                 canEditMatch={can(profile, 'ach_edit_match')}
                 canDelete={can(profile, 'ach_delete')}
+                onSaveSplit={handleSaveSplit}
                 onSaveNotes={handleSaveNotes}
                 showTransferComplete={can(profile, 'ach_transfer_complete')}
                 onTransferComplete={handleTransferComplete}
@@ -724,7 +742,8 @@ export default function ACHPage() {
                   canEditFull={can(profile, 'ach_edit_full')}
                   canEditMatch={can(profile, 'ach_edit_match')}
                   canDelete={can(profile, 'ach_delete')}
-                  onSaveNotes={handleSaveNotes}
+                  onSaveSplit={handleSaveSplit}
+                onSaveNotes={handleSaveNotes}
                   showTransferComplete={false}
                   onTransferComplete={handleTransferComplete}
                   onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}

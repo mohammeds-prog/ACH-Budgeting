@@ -367,7 +367,7 @@ function deriveInitials(profile) {
   return email.slice(0, 2).toUpperCase() || ''
 }
 
-export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onDelete, onDeleteMany, onEditMany, editingId, editRow, onEditRowChange, onSaveEdit, onCancelEdit, saving, highlightIds, isAllLocations, currentLocation, uniqueInsurers = [], canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, showTransferComplete = false, onTransferComplete, profile }) {
+export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onDelete, onDeleteMany, onEditMany, editingId, editRow, onEditRowChange, onSaveEdit, onCancelEdit, saving, highlightIds, isAllLocations, currentLocation, uniqueInsurers = [], canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, onSaveSplit, showTransferComplete = false, onTransferComplete, profile }) {
   const currentUserInitials = deriveInitials(profile)
   const [confirmId,           setConfirmId]           = useState(null)
   const [confirmBulk,         setConfirmBulk]         = useState(false)
@@ -380,6 +380,23 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
   const [editingNoteId,       setEditingNoteId]       = useState(null)
   const [expandedNotes,       setExpandedNotes]       = useState(new Set())
   const [transferCompleteId,  setTransferCompleteId]  = useState(null)
+  const [editingSplit,        setEditingSplit]        = useState(null) // { entryId, idx }
+  const [splitEditRow,        setSplitEditRow]        = useState({})
+  const [savingSplit,         setSavingSplit]         = useState(false)
+
+  function startSplitEdit(entry, idx) {
+    const split = entry.splits[idx]
+    setEditingSplit({ entryId: entry.id, idx })
+    setSplitEditRow({ match: split.match || '', status: split.status || '', initials: split.initials || '', notes: split.notes || '' })
+  }
+  function cancelSplitEdit() { setEditingSplit(null); setSplitEditRow({}) }
+  async function saveSplitEdit() {
+    if (!editingSplit || !onSaveSplit) return
+    setSavingSplit(true)
+    try { await onSaveSplit(editingSplit.entryId, editingSplit.idx, splitEditRow); setEditingSplit(null); setSplitEditRow({}) }
+    catch { /* keep edit open */ }
+    finally { setSavingSplit(false) }
+  }
 
   function exitSelection() {
     setSelectionMode(false)
@@ -539,6 +556,74 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                     ? (entry.splits.find((s) => s.location === currentLocation)?.amount ?? entry.amount)
                     : entry.amount
 
+                  const displayStatus = (() => {
+                    if (!isAllLocations && hasSplits) {
+                      const split = entry.splits.find((s) => s.location === currentLocation)
+                      return split?.status ?? entry.status
+                    }
+                    if (isAllLocations && hasSplits) {
+                      const vals = entry.splits.map((s) => s.status || '')
+                      return vals.every((v) => v === vals[0]) ? vals[0] : '__mixed__'
+                    }
+                    return entry.status
+                  })()
+
+                  const displayInitials = (() => {
+                    if (!isAllLocations && hasSplits) {
+                      const split = entry.splits.find((s) => s.location === currentLocation)
+                      return split?.initials ?? entry.initials
+                    }
+                    return entry.initials
+                  })()
+
+                  // On a specific location tab where entry matches via split (not received here),
+                  // show inline edit directly on the parent row instead of expanding sub-rows
+                  if (!isAllLocations && hasSplits && entry.fromLocation !== currentLocation && editingSplit?.entryId === entry.id) {
+                    const splitInitialsRequired = !!splitEditRow.status && splitEditRow.status !== 'Not Posted'
+                    return (
+                      <Fragment key={entry.id}>
+                        <tr onKeyDown={(e) => { if (e.key === 'Escape') cancelSplitEdit() }} className="border-b border-indigo-500/20 bg-indigo-500/[0.05]">
+                          {selectionMode && <td className="px-3 py-2" />}
+                          <td className="px-4 py-3 whitespace-nowrap"><span className="text-slate-300 font-medium tabular-nums text-xs">{formatDate(entry.postingDate)}</span></td>
+                          <td className="px-4 py-3">{entry.details ? <span className={`badge text-[10px] ${entry.details === 'CREDIT' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/15 text-red-400 border border-red-500/20'}`}>{entry.details}</span> : <span className="text-slate-700">—</span>}</td>
+                          <td className="px-4 py-3 max-w-[260px]"><span className="text-slate-400 text-xs leading-relaxed line-clamp-3 block">{entry.description || <span className="text-slate-700">—</span>}</span></td>
+                          <td className="px-4 py-3"><span className="text-slate-300 text-xs truncate block">{entry.insuranceName || <span className="text-slate-700">—</span>}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap"><span className={`font-semibold tabular-nums ${Number(displayAmount) < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatAmount(displayAmount)}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap"><span className="badge text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/30">← {shortLocation(entry.fromLocation)}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap"><span className="badge bg-slate-700/60 text-slate-300 border border-white/[0.06] text-[10px]">{shortLocation(currentLocation)}</span></td>
+                          <td className="px-2 py-2">
+                            <CustomSelect value={splitEditRow.match || ''} onChange={(v) => setSplitEditRow((p) => ({ ...p, match: v }))} options={MATCH_OPTIONS} style={{ minWidth: 80 }} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <CustomSelect
+                              value={splitEditRow.status || ''}
+                              onChange={(v) => setSplitEditRow((p) => {
+                                const u = { ...p, status: v }
+                                if (v && v !== 'Not Posted' && !p.initials?.trim() && currentUserInitials) u.initials = currentUserInitials
+                                return u
+                              })}
+                              options={STATUS_OPTIONS(ACH_STATUSES)}
+                              style={{ minWidth: 110 }}
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input type="text" value={splitEditRow.initials || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, initials: e.target.value }))} placeholder={splitInitialsRequired ? 'Required…' : 'Initials…'} maxLength={10}
+                              className={`${iCell} ${splitInitialsRequired && !splitEditRow.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`} style={{ minWidth: 80 }} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <AutoTextarea value={splitEditRow.notes || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes…" style={{ minWidth: 140, maxHeight: 72 }} />
+                          </td>
+                          <td className="px-2 py-2 sticky right-0 z-10 bg-slate-900" style={{ boxShadow: '-4px 0 8px rgba(0,0,0,0.4)' }}>
+                            <div className="flex gap-1.5">
+                              <button onClick={saveSplitEdit} disabled={savingSplit || (splitInitialsRequired && !splitEditRow.initials?.trim())} className="px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg disabled:opacity-40 transition-all whitespace-nowrap">{savingSplit ? '…' : 'Save'}</button>
+                              <button onClick={cancelSplitEdit} className="px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] rounded-lg transition-all">✕</button>
+                            </div>
+                          </td>
+                        </tr>
+                      </Fragment>
+                    )
+                  }
+
                   return (
                     <Fragment key={entry.id}>
                       <tr
@@ -604,11 +689,13 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                         <td className="px-4 py-3 whitespace-nowrap">{toCell}</td>
                         <td className="px-4 py-3"><MatchBadge value={displayMatch} /></td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <StatusBadge value={entry.status} />
+                          {displayStatus === '__mixed__'
+                            ? <span className="badge text-[10px] bg-slate-700/40 text-slate-500 border border-white/[0.05]">Mixed</span>
+                            : <StatusBadge value={displayStatus} />}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {entry.initials
-                            ? <span className="text-xs font-mono text-slate-400">{entry.initials}</span>
+                          {displayInitials
+                            ? <span className="text-xs font-mono text-slate-400">{displayInitials}</span>
                             : <span className="text-slate-700">—</span>}
                         </td>
                         <td className="px-4 py-3 max-w-[200px]">
@@ -673,7 +760,19 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                             {/* Action buttons — visible on hover */}
                             <div className="flex gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                               {canEditMatch && (
-                                <button onClick={() => onStartEdit(entry)} className="p-1.5 rounded-lg hover:bg-indigo-500/20 text-slate-600 hover:text-indigo-400 transition-colors" title="Edit">
+                                <button
+                                  onClick={() => {
+                                    if (!isAllLocations && hasSplits && entry.fromLocation !== currentLocation) {
+                                      const splitIdx = entry.splits.findIndex((s) => s.location === currentLocation)
+                                      if (splitIdx !== -1) { startSplitEdit(entry, splitIdx); return }
+                                    }
+                                    if (isAllLocations && hasSplits) {
+                                      setExpandedSplits((prev) => { const n = new Set(prev); n.add(entry.id); return n })
+                                    }
+                                    onStartEdit(entry)
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-indigo-500/20 text-slate-600 hover:text-indigo-400 transition-colors" title="Edit"
+                                >
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
                                 </button>
                               )}
@@ -692,33 +791,105 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                         </td>
                       </tr>
 
-                      {/* Split sub-rows */}
-                      {splitOpen && entry.splits.map((split, i) => (
-                        <tr key={`${entry.id}-s${i}`} className="border-b border-white/[0.03] bg-indigo-500/[0.03]">
-                          {selectionMode && <td />}
-                          {/* Date, Details, Description, Insurance — indent */}
-                          <td colSpan={4} className="px-4 py-2 pl-8">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                              <span className="text-slate-700">└</span>
-                              <span className="text-slate-600">split {i + 1} of {entry.splits.length}</span>
-                            </div>
-                          </td>
-                          {/* Amount */}
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            <span className="text-emerald-400/80 font-semibold tabular-nums text-xs">{formatAmount(split.amount)}</span>
-                          </td>
-                          {/* From — empty */}
-                          <td className="px-4 py-2" />
-                          {/* To location for this split */}
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            {split.location
-                              ? <span className="badge bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/15 text-[10px]">{shortLocation(split.location)}</span>
-                              : <span className="text-slate-700">—</span>}
-                          </td>
-                          {/* Match, Status, Initials, Notes, Actions — empty */}
-                          <td colSpan={5} className="px-4 py-2" />
-                        </tr>
-                      ))}
+                      {/* Split sub-rows — only on All Locations or when this tab received the payment */}
+                      {splitOpen && (isAllLocations || entry.fromLocation === currentLocation) && entry.splits.map((split, i) => {
+                        const isEditingSplit = editingSplit?.entryId === entry.id && editingSplit?.idx === i
+                        const splitInitialsRequired = !!splitEditRow.status && splitEditRow.status !== 'Not Posted'
+
+                        if (isEditingSplit) {
+                          return (
+                            <tr key={`${entry.id}-s${i}`} onKeyDown={(e) => { if (e.key === 'Escape') cancelSplitEdit() }} className="border-b border-indigo-500/20 bg-indigo-500/[0.07]">
+                              {selectionMode && <td className="px-3 py-2" />}
+                              <td colSpan={4} className="px-4 py-2 pl-8">
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                  <span className="text-slate-600">└</span>
+                                  <span>split {i + 1} of {entry.splits.length}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 whitespace-nowrap">
+                                <span className="text-emerald-400/80 font-semibold tabular-nums text-xs">{formatAmount(split.amount)}</span>
+                              </td>
+                              <td className="px-2 py-2" />
+                              <td className="px-2 py-2 whitespace-nowrap">
+                                {split.location ? <span className="badge bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/15 text-[10px]">{shortLocation(split.location)}</span> : <span className="text-slate-700">—</span>}
+                              </td>
+                              <td className="px-2 py-2">
+                                <CustomSelect value={splitEditRow.match || ''} onChange={(v) => setSplitEditRow((p) => ({ ...p, match: v }))} options={MATCH_OPTIONS} style={{ minWidth: 80 }} />
+                              </td>
+                              <td className="px-2 py-2">
+                                <CustomSelect
+                                  value={splitEditRow.status || ''}
+                                  onChange={(v) => setSplitEditRow((p) => {
+                                    const u = { ...p, status: v }
+                                    if (v && v !== 'Not Posted' && !p.initials?.trim() && currentUserInitials) u.initials = currentUserInitials
+                                    return u
+                                  })}
+                                  options={STATUS_OPTIONS(ACH_STATUSES)}
+                                  style={{ minWidth: 110 }}
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input
+                                  type="text"
+                                  value={splitEditRow.initials || ''}
+                                  onChange={(e) => setSplitEditRow((p) => ({ ...p, initials: e.target.value }))}
+                                  placeholder={splitInitialsRequired ? 'Required…' : 'Initials…'}
+                                  maxLength={10}
+                                  className={`${iCell} ${splitInitialsRequired && !splitEditRow.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`}
+                                  style={{ minWidth: 80 }}
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <AutoTextarea value={splitEditRow.notes || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes…" style={{ minWidth: 140, maxHeight: 72 }} />
+                              </td>
+                              <td className="px-2 py-2 sticky right-0 z-10 bg-slate-900" style={{ boxShadow: '-4px 0 8px rgba(0,0,0,0.4)' }}>
+                                <div className="flex gap-1.5">
+                                  <button onClick={saveSplitEdit} disabled={savingSplit || (splitInitialsRequired && !splitEditRow.initials?.trim())} className="px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg disabled:opacity-40 transition-all whitespace-nowrap">
+                                    {savingSplit ? '…' : 'Save'}
+                                  </button>
+                                  <button onClick={cancelSplitEdit} className="px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] rounded-lg transition-all">✕</button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        }
+
+                        return (
+                          <tr key={`${entry.id}-s${i}`} className="border-b border-white/[0.03] bg-indigo-500/[0.03] group/split-row">
+                            {selectionMode && <td />}
+                            <td colSpan={4} className="px-4 py-2 pl-8">
+                              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                                <span className="text-slate-700">└</span>
+                                <span className="text-slate-500">split {i + 1} of {entry.splits.length}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <span className="text-emerald-400/80 font-semibold tabular-nums text-xs">{formatAmount(split.amount)}</span>
+                            </td>
+                            <td className="px-4 py-2" />
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              {split.location ? <span className="badge bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/15 text-[10px]">{shortLocation(split.location)}</span> : <span className="text-slate-700">—</span>}
+                            </td>
+                            <td className="px-4 py-2"><MatchBadge value={split.match} /></td>
+                            <td className="px-4 py-2 whitespace-nowrap"><StatusBadge value={split.status} /></td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              {split.initials ? <span className="text-xs font-mono text-slate-400">{split.initials}</span> : <span className="text-slate-700">—</span>}
+                            </td>
+                            <td className="px-4 py-2 max-w-[200px]">
+                              {split.notes ? <span className="text-slate-400/60 text-xs line-clamp-2">{split.notes}</span> : <span className="text-slate-700">—</span>}
+                            </td>
+                            <td className="px-4 py-2 sticky right-0 z-10 bg-slate-900/80 group-hover/split-row:bg-slate-800/80" style={{ boxShadow: '-4px 0 8px rgba(0,0,0,0.4)' }}>
+                              {canEditMatch && (
+                                <div className="opacity-0 group-hover/split-row:opacity-100 transition-opacity">
+                                  <button onClick={() => startSplitEdit(entry, i)} className="p-1.5 rounded-lg hover:bg-indigo-500/20 text-slate-600 hover:text-indigo-400 transition-colors" title="Edit split">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </Fragment>
                   )
                 })}

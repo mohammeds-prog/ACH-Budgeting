@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 
 // ── Shared helpers (importable by pages) ─────────────────────────
 
@@ -202,15 +203,28 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
   function handleFile(file) {
     if (!file) return
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name)
     const reader = new FileReader()
-    reader.onload = (e) => processRaw(e.target.result)
-    reader.readAsText(file)
+    if (isExcel) {
+      reader.onload = (e) => {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' })
+        const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]])
+        processRaw(csv)
+      }
+      reader.readAsArrayBuffer(file)
+    } else {
+      reader.onload = (e) => processRaw(e.target.result)
+      reader.readAsText(file)
+    }
   }
 
   function handleDrop(e) {
     e.preventDefault(); setDragOver(false)
     const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
+    if (file) {
+      const ext = file.name.split('.').pop().toLowerCase()
+      if (['csv', 'tsv', 'txt', 'xlsx', 'xls'].includes(ext)) handleFile(file)
+    }
   }
 
   const validRows = parsed?.mapped.filter((r) => r.errors.length === 0) ?? []
@@ -310,9 +324,9 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
               {/* Paste / upload area */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Paste or upload CSV</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Paste or upload CSV / Excel</p>
                   <div className="flex gap-2">
-                    <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
+                    <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
                     <button onClick={() => fileRef.current.click()} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg px-2.5 py-1.5 transition-all">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
                       Upload file

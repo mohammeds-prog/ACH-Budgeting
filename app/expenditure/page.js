@@ -54,14 +54,14 @@ function fmtDate(val) {
   return `${m}/${d}/${y}`
 }
 
-const darkCard = 'bg-white/[0.04] border border-white/[0.08] rounded-2xl'
-const iCell = 'w-full px-2 py-1.5 text-xs bg-slate-800 border border-white/[0.1] rounded-lg text-white placeholder:text-white/20 outline-none focus:border-violet-400/70 focus:ring-1 focus:ring-violet-400/30 transition-all [color-scheme:dark]'
+const darkCard = 'glass-card rounded-2xl'
+const iCell = 'w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100/50 transition-all'
 
 const EMPTY_ROW = { date: '', person: '', vendor: '', description: '', amount: '' }
 
 function EditRow({ row, onChange, onSave, onCancel, saving }) {
   return (
-    <tr className="border-b border-violet-500/20 bg-violet-500/[0.05]">
+    <tr className="border-b border-violet-300/50 bg-violet-50/60">
       <td className="px-4 py-2"><input type="date" value={row.date || ''} onChange={(e) => onChange('date', e.target.value)} className={iCell} style={{ minWidth: 120 }} /></td>
       <td className="px-4 py-2"><input type="text" value={row.person || ''} onChange={(e) => onChange('person', e.target.value)} placeholder="Name…" className={iCell} style={{ minWidth: 110 }} /></td>
       <td className="px-4 py-2"><input type="text" value={row.vendor || ''} onChange={(e) => onChange('vendor', e.target.value)} placeholder="Vendor…" className={iCell} style={{ minWidth: 130 }} /></td>
@@ -70,7 +70,7 @@ function EditRow({ row, onChange, onSave, onCancel, saving }) {
       <td className="px-4 py-2">
         <div className="flex gap-1.5">
           <button onClick={onSave} disabled={saving || !row.date || !row.person || row.amount === ''} className="px-2.5 py-1 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-lg disabled:opacity-40 transition-all whitespace-nowrap">{saving ? '…' : 'Save'}</button>
-          <button onClick={onCancel} className="px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] rounded-lg transition-all">✕</button>
+          <button onClick={onCancel} className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all">✕</button>
         </div>
       </td>
     </tr>
@@ -275,38 +275,35 @@ export default function ExpenditurePage() {
   const pagedEntries = sortedEntries.slice((expPage - 1) * EXP_PAGE_SIZE, expPage * EXP_PAGE_SIZE)
 
   return (
-    <div className="min-h-screen bg-slate-900 relative">
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-950/50 via-slate-900 to-slate-900 pointer-events-none" />
-      <div className="fixed inset-0 opacity-[0.025] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #a78bfa 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-      <div className="fixed top-0 right-1/3 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen futuristic-bg relative">
 
       <div className="relative z-10">
         <AppHeader />
 
         {/* ── Hero ── */}
-        <div className="border-b border-white/[0.06] bg-gradient-to-br from-violet-950/40 via-slate-900/80 to-slate-900">
+        <div className="futuristic-hero">
           <div className="max-w-screen-xl mx-auto px-6 py-8">
 
             {/* Title row */}
             <div className="flex items-start justify-between gap-6">
               <div>
-                <p className="text-violet-300/80 text-xs font-semibold uppercase tracking-widest mb-1">Budget</p>
-                <h1 className="text-3xl font-bold text-white tracking-tight">Supply Budget</h1>
-                <p className="text-slate-400 text-sm mt-1">Clinic supply spending · 6% of last month's collections</p>
+                <p className="text-violet-600 text-xs font-semibold uppercase tracking-widest mb-1">Budget</p>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Supply Budget</h1>
+                <p className="text-slate-500 text-sm mt-1">Clinic supply spending · 6% of last month's collections</p>
               </div>
               <div className="flex gap-2 shrink-0 pt-1 flex-wrap justify-end">
                 {can(profile, 'set_collections') && (
-                  <button onClick={() => setCollModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all">
+                  <button onClick={() => setCollModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/></svg>
                     Set Collections
                   </button>
                 )}
-                <button onClick={() => setVendorModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all">
+                <button onClick={() => setVendorModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg>
                   Vendor Analysis
                 </button>
                 {can(profile, 'budget_import') && (
-                  <button onClick={() => setImportModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all">
+                  <button onClick={() => setImportModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                     Import
                   </button>
@@ -323,10 +320,10 @@ export default function ExpenditurePage() {
             {/* Viewing picker */}
             <div className="mt-6">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">Viewing</p>
-              <div className="inline-flex flex-col gap-2 bg-white/[0.05] border border-white/[0.08] rounded-2xl p-3">
+              <div className="inline-flex flex-col gap-2 glass-card rounded-2xl p-3">
                 <div className="flex gap-1">
                   {pickerYears.map((y) => (
-                    <button key={y} onClick={() => setPickerYear(y)} className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${pickerYear === y ? 'bg-violet-500/25 text-violet-300 border border-violet-500/40' : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.05]'}`}>{y}</button>
+                    <button key={y} onClick={() => setPickerYear(y)} className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${pickerYear === y ? 'bg-violet-100 text-violet-700 border border-violet-300' : 'text-slate-500 hover:text-slate-700 hover:bg-violet-50/60'}`}>{y}</button>
                   ))}
                 </div>
                 <div className="grid grid-cols-6 gap-1">
@@ -336,7 +333,7 @@ export default function ExpenditurePage() {
                     const isSelected = key === selectedMonth
                     return (
                       <button key={key} disabled={isFuture} onClick={() => { setSelectedMonth(key); cancelEdit() }}
-                        className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all ${isSelected ? 'bg-violet-500 text-white shadow-lg shadow-violet-900/40' : isFuture ? 'text-slate-700 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-white/[0.07]'}`}>
+                        className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all ${isSelected ? 'bg-violet-500 text-white shadow-lg shadow-violet-200' : isFuture ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-900 hover:bg-violet-50'}`}>
                         {name}
                       </button>
                     )
@@ -349,24 +346,24 @@ export default function ExpenditurePage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
               <div className={`${darkCard} p-4`}>
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1">Collections · {monthLabel(prevKey)}</p>
-                <p className="text-xl font-bold text-white tabular-nums">{fmt(prevCollections)}</p>
-                <p className="text-xs text-slate-600 mt-0.5">{shortName(selectedLocation)}</p>
+                <p className="text-xl font-bold text-slate-900 tabular-nums">{fmt(prevCollections)}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{shortName(selectedLocation)}</p>
               </div>
-              <div className="bg-violet-500/[0.08] border border-violet-500/20 rounded-2xl p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-400 mb-1">Monthly Budget</p>
-                <p className="text-xl font-bold text-violet-300 tabular-nums">{fmt(budget)}</p>
+              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-600 mb-1">Monthly Budget</p>
+                <p className="text-xl font-bold text-violet-700 tabular-nums">{fmt(budget)}</p>
                 {budget === 0 && baseBudget === 0
-                  ? <p className="text-xs text-violet-400/50 mt-0.5">Set collections to calculate</p>
+                  ? <p className="text-xs text-violet-400 mt-0.5">Set collections to calculate</p>
                   : <div className="flex flex-col gap-0.5 mt-1">
-                      <p className="text-xs text-violet-400/60">6% base: <span className="tabular-nums">{fmt(baseBudget)}</span></p>
-                      {carryOver > 0 && <p className="text-xs text-emerald-400/80">+ {fmt(carryOver)} surplus carried in</p>}
-                      {carryOver < 0 && <p className="text-xs text-red-400/80">− {fmt(Math.abs(carryOver))} overspend carried in</p>}
+                      <p className="text-xs text-violet-500">6% base: <span className="tabular-nums">{fmt(baseBudget)}</span></p>
+                      {carryOver > 0 && <p className="text-xs text-emerald-600">+ {fmt(carryOver)} surplus carried in</p>}
+                      {carryOver < 0 && <p className="text-xs text-red-600">− {fmt(Math.abs(carryOver))} overspend carried in</p>}
                     </div>
                 }
               </div>
-              <div className={`p-4 rounded-2xl border ${overBudget ? 'bg-red-500/[0.08] border-red-500/20' : budget > 0 && remaining / budget < 0.2 ? 'bg-amber-500/[0.08] border-amber-500/20' : 'bg-emerald-500/[0.08] border-emerald-500/20'}`}>
-                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${overBudget ? 'text-red-400' : budget > 0 && remaining / budget < 0.2 ? 'text-amber-400' : 'text-emerald-400'}`}>{overBudget ? 'Over Budget' : 'Remaining'}</p>
-                <p className={`text-xl font-bold tabular-nums ${overBudget ? 'text-red-300' : budget > 0 && remaining / budget < 0.2 ? 'text-amber-300' : 'text-emerald-300'}`}>{overBudget ? '-' : ''}{fmt(Math.abs(remaining))}</p>
+              <div className={`p-4 rounded-2xl border ${overBudget ? 'bg-red-50 border-red-200' : budget > 0 && remaining / budget < 0.2 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${overBudget ? 'text-red-600' : budget > 0 && remaining / budget < 0.2 ? 'text-amber-600' : 'text-emerald-600'}`}>{overBudget ? 'Over Budget' : 'Remaining'}</p>
+                <p className={`text-xl font-bold tabular-nums ${overBudget ? 'text-red-700' : budget > 0 && remaining / budget < 0.2 ? 'text-amber-700' : 'text-emerald-700'}`}>{overBudget ? '-' : ''}{fmt(Math.abs(remaining))}</p>
                 <p className="text-xs mt-0.5 text-slate-500 tabular-nums">{fmt(totalSpent)} spent of {fmt(budget)}</p>
               </div>
             </div>
@@ -377,16 +374,16 @@ export default function ExpenditurePage() {
                   <span>Budget utilisation — {shortName(selectedLocation)}</span>
                   <span className={`font-semibold tabular-nums ${overBudget ? 'text-red-400' : pct > 80 ? 'text-amber-400' : 'text-slate-400'}`}>{pct.toFixed(1)}%</span>
                 </div>
-                <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all duration-700 ${overBudget ? 'bg-red-500' : pct > 80 ? 'bg-amber-400' : 'bg-violet-500'}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             )}
 
             {!budget && (
-              <div className="mt-4 bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-3 flex items-start gap-2.5">
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5">
                 <span className="text-base shrink-0">💡</span>
-                <p className="text-xs text-amber-400/80">Click <strong className="text-amber-300">Set Collections</strong> to enter {monthLabel(prevKey)}'s revenue and calculate the 6% budget.</p>
+                <p className="text-xs text-amber-700">Click <strong className="text-amber-700 font-semibold">Set Collections</strong> to enter {monthLabel(prevKey)}'s revenue and calculate the 6% budget.</p>
               </div>
             )}
           </div>
@@ -397,7 +394,7 @@ export default function ExpenditurePage() {
 
           {/* Location tabs */}
           <div className={`${darkCard} overflow-hidden`}>
-            <div className="flex overflow-x-auto divide-x divide-white/[0.05]">
+            <div className="flex overflow-x-auto divide-x divide-slate-200/60">
               {LOCATIONS.map((loc) => {
                 const isActive = loc === selectedLocation
                 const { effective: locBudget } = computeBudget(loc, selectedMonth)
@@ -406,16 +403,16 @@ export default function ExpenditurePage() {
                 const locPct   = locBudget > 0 ? Math.min((locSpent / locBudget) * 100, 100) : 0
                 return (
                   <button key={loc} onClick={() => { setSelectedLocation(loc); cancelEdit() }}
-                    className={`flex-1 min-w-[130px] px-4 py-4 text-sm font-medium transition-all text-center border-b-2 ${isActive ? 'border-violet-500 bg-violet-500/10 text-violet-300' : 'border-transparent text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}>
+                    className={`flex-1 min-w-[130px] px-4 py-4 text-sm font-medium transition-all text-center border-b-2 ${isActive ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-transparent text-slate-500 hover:bg-violet-50/50 hover:text-slate-700'}`}>
                     <div className="font-semibold text-sm">{shortName(loc)}</div>
                     {locBudget > 0 ? (
                       <>
                         <div className={`text-[10px] font-medium mt-0.5 ${locOver ? 'text-red-400' : 'text-slate-500'}`}>{locOver ? '⚠ Over budget' : `${fmt(locSpent)} / ${fmt(locBudget)}`}</div>
-                        <div className="mt-2 h-1 bg-white/[0.08] rounded-full overflow-hidden mx-2">
+                        <div className="mt-2 h-1 bg-slate-200 rounded-full overflow-hidden mx-2">
                           <div className={`h-full rounded-full transition-all duration-500 ${locOver ? 'bg-red-400' : locPct > 80 ? 'bg-amber-400' : 'bg-violet-400'}`} style={{ width: `${locPct}%` }} />
                         </div>
                       </>
-                    ) : <div className="text-[10px] text-slate-600 mt-0.5">No collections</div>}
+                    ) : <div className="text-[10px] text-slate-400 mt-0.5">No collections</div>}
                   </button>
                 )
               })}
@@ -424,12 +421,12 @@ export default function ExpenditurePage() {
 
           {/* Expenses table */}
           <div className={`${darkCard} overflow-hidden`}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] bg-white/[0.02]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/40">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-300">{shortName(selectedLocation)}</span>
-                <span className="text-white/20">·</span>
+                <span className="text-sm font-semibold text-slate-800">{shortName(selectedLocation)}</span>
+                <span className="text-slate-300">·</span>
                 <span className="text-sm text-slate-500">{monthLabel(selectedMonth)}</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/[0.08] text-slate-400 text-[10px] font-semibold ml-1">{locationEntries.length}</span>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-semibold ml-1">{locationEntries.length}</span>
               </div>
             </div>
 
@@ -440,20 +437,20 @@ export default function ExpenditurePage() {
               </div>
             ) : sortedEntries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.06] flex items-center justify-center mb-3">
-                  <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75"/></svg>
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                  <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75"/></svg>
                 </div>
                 <p className="text-sm font-medium text-slate-400">No expenses logged</p>
-                <p className="text-xs text-slate-600 mt-1">{shortName(selectedLocation)} · {monthLabel(selectedMonth)}</p>
+                <p className="text-xs text-slate-400 mt-1">{shortName(selectedLocation)} · {monthLabel(selectedMonth)}</p>
               </div>
             ) : (
               <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06]">
+                    <tr className="border-b border-slate-100">
                       {['Date','Person','Vendor','Item / Description','Amount',''].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500 bg-white/[0.02]">{h}</th>
+                        <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -461,21 +458,21 @@ export default function ExpenditurePage() {
                     {pagedEntries.map((e) => {
                       if (editingId === e.id) return <EditRow key={e.id} row={editRow} onChange={changeEditRow} onSave={saveEdit} onCancel={cancelEdit} saving={saving} />
                       return (
-                        <tr key={e.id} id={`exp-row-${e.id}`} className={`group/row border-b border-white/[0.04] last:border-0 transition-colors ${e.id === highlightId ? 'bg-amber-500/[0.12] ring-1 ring-inset ring-amber-500/30' : 'hover:bg-white/[0.03]'}`}>
+                        <tr key={e.id} id={`exp-row-${e.id}`} className={`group/row border-b border-slate-100 last:border-0 transition-colors ${e.id === highlightId ? 'bg-amber-50 ring-1 ring-inset ring-amber-200' : 'hover:bg-violet-50/40'}`}>
                           <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 tabular-nums text-xs">{fmtDate(e.date)}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0">{e.person?.charAt(0).toUpperCase()}</div>
-                              <span className="font-semibold text-slate-300 text-sm">{e.person}</span>
+                              <span className="font-semibold text-slate-800 text-sm">{e.person}</span>
                             </div>
                           </td>
-                          <td className="px-5 py-3.5 max-w-[140px] truncate text-xs text-slate-400" title={e.vendor}>{e.vendor || <span className="text-slate-700">—</span>}</td>
+                          <td className="px-5 py-3.5 max-w-[140px] truncate text-xs text-slate-600" title={e.vendor}>{e.vendor || <span className="text-slate-300">—</span>}</td>
                           <td className="px-5 py-3.5 text-slate-500 max-w-[220px] truncate text-xs" title={e.description}>{e.description || '—'}</td>
-                          <td className="px-5 py-3.5 font-bold text-white tabular-nums">{fmt(e.amount)}</td>
+                          <td className="px-5 py-3.5 font-bold text-slate-900 tabular-nums">{fmt(e.amount)}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                              {can(profile, 'budget_edit') && <button onClick={() => startEdit(e)} className="p-1.5 rounded-lg hover:bg-violet-500/20 text-slate-600 hover:text-violet-400 transition-colors"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg></button>}
-                              {can(profile, 'budget_delete') && <button onClick={() => setConfirmId(e.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>}
+                              {can(profile, 'budget_edit') && <button onClick={() => startEdit(e)} className="p-1.5 rounded-lg hover:bg-violet-100 text-slate-400 hover:text-violet-600 transition-colors"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg></button>}
+                              {can(profile, 'budget_delete') && <button onClick={() => setConfirmId(e.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>}
                             </div>
                           </td>
                         </tr>
@@ -485,19 +482,19 @@ export default function ExpenditurePage() {
                 </table>
               </div>
               {expTotalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.06] bg-white/[0.02]">
+                <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/40">
                   <span className="text-xs text-slate-500">
                     {((expPage - 1) * EXP_PAGE_SIZE + 1).toLocaleString()}–{Math.min(expPage * EXP_PAGE_SIZE, sortedEntries.length).toLocaleString()} of {sortedEntries.length.toLocaleString()} entries
                   </span>
                   <div className="flex items-center gap-1">
                     <button onClick={() => setExpPage((p) => p - 1)} disabled={expPage === 1}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
                       Prev
                     </button>
-                    <span className="px-3 text-xs text-slate-400 tabular-nums">Page {expPage} of {expTotalPages}</span>
+                    <span className="px-3 text-xs text-slate-500 tabular-nums">Page {expPage} of {expTotalPages}</span>
                     <button onClick={() => setExpPage((p) => p + 1)} disabled={expPage === expTotalPages}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       Next
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
@@ -513,26 +510,26 @@ export default function ExpenditurePage() {
         {vendorModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setVendorModal(false)} />
-            <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-3xl z-10 overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+            <div className="relative bg-white border border-violet-200/60 rounded-2xl shadow-2xl w-full max-w-3xl z-10 overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
 
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07] shrink-0">
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
                 <div>
-                  <h2 className="text-base font-semibold text-white">Vendor Spending Analysis</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Vendor Spending Analysis</h2>
                   <p className="text-xs text-slate-500 mt-0.5">Ranked by total spend · {shortName(vendorModalLocation)}</p>
                 </div>
-                <button onClick={() => setVendorModal(false)} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+                <button onClick={() => setVendorModal(false)} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
                 </button>
               </div>
 
               {/* Location tabs + Date filters */}
-              <div className="px-6 pt-4 pb-3 border-b border-white/[0.06] space-y-3 shrink-0">
+              <div className="px-6 pt-4 pb-3 border-b border-slate-200 space-y-3 shrink-0">
                 {/* Location pills */}
                 <div className="flex gap-1 flex-wrap">
                   {LOCATIONS.map((loc) => (
                     <button key={loc} onClick={() => { setVendorModalLocation(loc); setVendorPage(1) }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${vendorModalLocation === loc ? 'bg-violet-500/20 text-violet-300 border-violet-500/40' : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-white/[0.05]'}`}>
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${vendorModalLocation === loc ? 'bg-violet-100 text-violet-700 border-violet-300' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-violet-50'}`}>
                       {shortName(loc)}
                     </button>
                   ))}
@@ -549,17 +546,17 @@ export default function ExpenditurePage() {
                     { id: 'custom', label: 'Custom Range' },
                   ].map(({ id, label }) => (
                     <button key={id} onClick={() => { setVendorDatePreset(id); setVendorPage(1) }}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all border ${vendorDatePreset === id ? 'bg-violet-500/20 text-violet-300 border-violet-500/40' : 'text-slate-600 border-white/[0.07] hover:text-slate-300 hover:bg-white/[0.05]'}`}>
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all border ${vendorDatePreset === id ? 'bg-violet-100 text-violet-700 border-violet-300' : 'text-slate-600 border-slate-200 hover:text-slate-700 hover:bg-violet-50'}`}>
                       {label}
                     </button>
                   ))}
                   {vendorDatePreset === 'custom' && (
                     <div className="flex items-center gap-1.5 ml-1">
                       <input type="date" value={vendorCustomFrom} onChange={(e) => setVendorCustomFrom(e.target.value)}
-                        className="px-2 py-1 text-xs bg-slate-800 border border-white/[0.1] rounded-lg text-white outline-none focus:border-violet-400/70 [color-scheme:dark]" />
-                      <span className="text-slate-600 text-xs">→</span>
+                        className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-violet-400" />
+                      <span className="text-slate-400 text-xs">→</span>
                       <input type="date" value={vendorCustomTo} onChange={(e) => setVendorCustomTo(e.target.value)}
-                        className="px-2 py-1 text-xs bg-slate-800 border border-white/[0.1] rounded-lg text-white outline-none focus:border-violet-400/70 [color-scheme:dark]" />
+                        className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-violet-400" />
                     </div>
                   )}
                 </div>
@@ -572,8 +569,8 @@ export default function ExpenditurePage() {
                 ) : (
                   <>
                   <table className="w-full text-sm border-collapse">
-                    <thead className="sticky top-0 bg-slate-900 z-10">
-                      <tr className="border-b border-white/[0.06]">
+                    <thead className="sticky top-0 bg-white z-10">
+                      <tr className="border-b border-slate-100">
                         <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500 w-10">#</th>
                         <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">Vendor</th>
                         <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-500">Total Spent</th>
@@ -588,21 +585,21 @@ export default function ExpenditurePage() {
                         const pct = vendorTableData.grandTotal > 0 ? (row.total / vendorTableData.grandTotal) * 100 : 0
                         const color = VENDOR_COLORS[globalIdx % VENDOR_COLORS.length]
                         return (
-                          <tr key={row.vendor} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors">
+                          <tr key={row.vendor} className="border-b border-slate-100 last:border-0 hover:bg-violet-50/30 transition-colors">
                             <td className="px-5 py-3.5 text-xs font-bold text-slate-600 tabular-nums">{globalIdx + 1}</td>
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-                                <span className="font-semibold text-slate-200 text-sm">{row.vendor}</span>
-                                {globalIdx === 0 && <span className="text-[10px] font-bold text-violet-400 bg-violet-400/10 border border-violet-400/20 px-1.5 py-0.5 rounded-md">Top</span>}
+                                <span className="font-semibold text-slate-800 text-sm">{row.vendor}</span>
+                                {globalIdx === 0 && <span className="text-[10px] font-bold text-violet-700 bg-violet-100 border border-violet-300 px-1.5 py-0.5 rounded-md">Top</span>}
                               </div>
                             </td>
-                            <td className="px-5 py-3.5 text-right font-bold text-white tabular-nums">{fmt(row.total)}</td>
-                            <td className="px-5 py-3.5 text-right text-slate-400 tabular-nums text-xs">{row.count}</td>
-                            <td className="px-5 py-3.5 text-right text-slate-400 tabular-nums text-xs">{fmt(row.avg)}</td>
+                            <td className="px-5 py-3.5 text-right font-bold text-slate-900 tabular-nums">{fmt(row.total)}</td>
+                            <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums text-xs">{row.count}</td>
+                            <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums text-xs">{fmt(row.avg)}</td>
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                   <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
                                 </div>
                                 <span className="text-[11px] text-slate-500 tabular-nums w-10 text-right">{pct.toFixed(1)}%</span>
@@ -613,11 +610,11 @@ export default function ExpenditurePage() {
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-white/[0.1] bg-white/[0.02]">
+                      <tr className="border-t border-slate-200 bg-slate-50">
                         <td className="px-5 py-3.5" />
-                        <td className="px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-widest">Total</td>
-                        <td className="px-5 py-3.5 text-right font-bold text-violet-300 tabular-nums">{fmt(vendorTableData.grandTotal)}</td>
-                        <td className="px-5 py-3.5 text-right text-slate-400 tabular-nums text-xs">
+                        <td className="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-widest">Total</td>
+                        <td className="px-5 py-3.5 text-right font-bold text-violet-700 tabular-nums">{fmt(vendorTableData.grandTotal)}</td>
+                        <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums text-xs">
                           {vendorTableData.rows.reduce((s, r) => s + r.count, 0)}
                         </td>
                         <td colSpan={2} />
@@ -625,19 +622,19 @@ export default function ExpenditurePage() {
                     </tfoot>
                   </table>
                   {vendorTableData.rows.length > VENDOR_PAGE_SIZE && (
-                    <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.06] bg-white/[0.02] shrink-0">
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/40 shrink-0">
                       <span className="text-xs text-slate-500 tabular-nums">
                         {((vendorPage - 1) * VENDOR_PAGE_SIZE + 1)}–{Math.min(vendorPage * VENDOR_PAGE_SIZE, vendorTableData.rows.length)} of {vendorTableData.rows.length} vendors
                       </span>
                       <div className="flex items-center gap-1">
                         <button onClick={() => setVendorPage((p) => p - 1)} disabled={vendorPage === 1}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
                           Prev
                         </button>
-                        <span className="px-3 text-xs text-slate-400 tabular-nums">Page {vendorPage} of {Math.ceil(vendorTableData.rows.length / VENDOR_PAGE_SIZE)}</span>
+                        <span className="px-3 text-xs text-slate-500 tabular-nums">Page {vendorPage} of {Math.ceil(vendorTableData.rows.length / VENDOR_PAGE_SIZE)}</span>
                         <button onClick={() => setVendorPage((p) => p + 1)} disabled={vendorPage === Math.ceil(vendorTableData.rows.length / VENDOR_PAGE_SIZE)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                           Next
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                         </button>
@@ -691,14 +688,14 @@ export default function ExpenditurePage() {
         {confirmId && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmId(null)} />
-            <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl p-6 w-80 z-10">
-              <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20 flex items-center justify-center mb-4">
+            <div className="relative bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 w-80 z-10">
+              <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
               </div>
-              <h3 className="font-semibold text-white mb-1">Delete this expense?</h3>
-              <p className="text-sm text-slate-400 mb-5">This action cannot be undone.</p>
+              <h3 className="font-semibold text-slate-900 mb-1">Delete this expense?</h3>
+              <p className="text-sm text-slate-600 mb-5">This action cannot be undone.</p>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setConfirmId(null)} className="px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] rounded-lg transition-all">Cancel</button>
+                <button onClick={() => setConfirmId(null)} className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all">Cancel</button>
                 <button onClick={() => handleDelete(confirmId)} className="px-3 py-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-all">Delete</button>
               </div>
             </div>

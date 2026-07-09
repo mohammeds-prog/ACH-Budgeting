@@ -24,11 +24,11 @@ export default function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-white/[0.07]">
+    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-violet-200/60" style={{boxShadow: '0 1px 0 rgba(139,92,246,0.10), 0 4px 16px -4px rgba(99,102,241,0.08)'}}>
       <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center gap-2">
         <Link
           href="/"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-violet-100/60 transition-all"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -39,10 +39,10 @@ export default function AppHeader() {
 
         {pageLabel && (
           <>
-            <svg className="w-3.5 h-3.5 text-slate-700 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-slate-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6"/>
             </svg>
-            <span className="text-sm font-semibold text-white">{pageLabel}</span>
+            <span className="text-sm font-semibold text-slate-900">{pageLabel}</span>
           </>
         )}
 
@@ -50,7 +50,7 @@ export default function AppHeader() {
           {profile?.role === 'admin' && path !== '/admin/activity-log' && (
             <Link
               href="/admin"
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all ${path === '/admin' ? 'text-white bg-white/[0.08]' : 'text-slate-500 hover:text-white hover:bg-white/[0.06]'}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all ${path === '/admin' ? 'text-slate-900 bg-violet-100/60' : 'text-slate-500 hover:text-slate-900 hover:bg-violet-100/60'}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
               Admin

@@ -48,25 +48,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 relative flex items-center justify-center p-4 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-indigo-950/60 via-slate-900 to-slate-900" />
-      <div className="absolute inset-0 opacity-[0.025] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #818cf8 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen futuristic-bg relative flex items-center justify-center p-4 overflow-hidden">
 
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <TuskLogo size="xl" />
-          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-semibold tracking-widest uppercase">
+          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-semibold tracking-widest uppercase">
             Clinic Finance Portal
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-white tracking-tight">Sign in</h1>
-          <p className="mt-1 text-sm text-slate-400">Enter your credentials to continue</p>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900 tracking-tight">Sign in</h1>
+          <p className="mt-1 text-sm text-slate-600">Enter your credentials to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-4">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">Email</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-600 mb-1.5">Email</label>
             <input
               type="email"
               value={email}
@@ -79,7 +75,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">Password</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-600 mb-1.5">Password</label>
             <input
               type="password"
               value={password}
@@ -120,4 +116,4 @@ export default function LoginPage() {
   )
 }
 
-const inp = 'w-full px-3 py-2.5 text-sm bg-slate-800/80 border border-white/[0.08] rounded-xl text-white placeholder:text-white/25 outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 transition-all [color-scheme:dark]'
+const inp = 'w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100/50 transition-all'

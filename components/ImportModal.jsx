@@ -254,16 +254,16 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={result ? onClose : undefined} />
-      <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-4xl z-10 flex flex-col max-h-[90vh]">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={result ? onClose : undefined} />
+      <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 w-full max-w-4xl z-10 flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/[0.07] shrink-0">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-white">{title}</h2>
+            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
             <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -272,11 +272,11 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
           {/* Success result */}
           {result && !result.error && (
-            <div className="bg-emerald-500/[0.08] border border-emerald-500/20 rounded-2xl p-5 text-center">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
               </div>
-              <p className="text-sm font-semibold text-emerald-300">{result.imported} row{result.imported !== 1 ? 's' : ''} imported successfully</p>
+              <p className="text-sm font-semibold text-emerald-700">{result.imported} row{result.imported !== 1 ? 's' : ''} imported successfully</p>
               {result.skipped > 0 && <p className="text-xs text-slate-500 mt-1">{result.skipped} row{result.skipped !== 1 ? 's' : ''} skipped due to errors</p>}
               <button onClick={onClose} className="mt-4 px-4 py-1.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all">Done</button>
             </div>
@@ -286,7 +286,7 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
           {result?.error && (
             <div className="bg-red-500/[0.08] border border-red-500/20 rounded-xl p-4 flex gap-3">
               <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
-              <p className="text-xs text-red-300">{result.error}</p>
+              <p className="text-xs text-red-600">{result.error}</p>
             </div>
           )}
 
@@ -296,17 +296,17 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Expected columns</p>
-                  <button onClick={copyTemplate} className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                  <button onClick={copyTemplate} className="inline-flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-500 transition-colors">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"/></svg>
                     Copy template
                   </button>
                 </div>
-                <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl overflow-x-auto">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-x-auto">
                   <table className="w-full text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-white/[0.07]">
+                      <tr className="border-b border-slate-100">
                         {columns.map((c) => (
-                          <th key={c.key} className="px-3 py-2 text-left font-mono text-slate-400 whitespace-nowrap">
+                          <th key={c.key} className="px-3 py-2 text-left font-mono text-slate-600 whitespace-nowrap">
                               {c.key}
                               {c.required && <span className="text-red-400 ml-0.5">*</span>}
                               {c.defaultValue != null && <span className="ml-1.5 text-[9px] font-sans font-semibold text-indigo-400/60 normal-case tracking-normal">auto</span>}
@@ -317,13 +317,13 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                     <tbody>
                       <tr>
                         {columns.map((c) => (
-                          <td key={c.key} className="px-3 py-2 text-slate-600 font-mono whitespace-nowrap">{c.example ?? '…'}</td>
+                          <td key={c.key} className="px-3 py-2 text-slate-400 font-mono whitespace-nowrap">{c.example ?? '…'}</td>
                         ))}
                       </tr>
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[10px] text-slate-700 mt-1.5">* required · column order doesn't matter · spaces and underscores in headers are ignored</p>
+                <p className="text-[10px] text-slate-400 mt-1.5">* required · column order doesn't matter · spaces and underscores in headers are ignored</p>
               </div>
 
               {/* Paste / upload area */}
@@ -332,11 +332,11 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                   <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Paste or upload CSV / Excel</p>
                   <div className="flex gap-2">
                     <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
-                    <button onClick={() => fileRef.current.click()} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg px-2.5 py-1.5 transition-all">
+                    <button onClick={() => fileRef.current.click()} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 transition-all">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
                       Upload file
                     </button>
-                    {raw && <button onClick={() => { setRaw(''); setParsed(null) }} className="text-xs text-slate-600 hover:text-red-400 transition-colors">Clear</button>}
+                    {raw && <button onClick={() => { setRaw(''); setParsed(null) }} className="text-xs text-slate-500 hover:text-red-500 transition-colors">Clear</button>}
                   </div>
                 </div>
 
@@ -344,19 +344,19 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  className={`relative rounded-xl border transition-colors ${dragOver ? 'border-violet-500/50 bg-violet-500/[0.05]' : 'border-white/[0.08] bg-white/[0.03]'}`}
+                  className={`relative rounded-xl border transition-colors ${dragOver ? 'border-violet-400 bg-violet-50' : 'border-slate-200 bg-slate-50'}`}
                 >
                   <textarea
                     value={raw}
                     onChange={handlePaste}
                     placeholder={`Paste CSV data here…\n\nExample:\n${headerRow}\n${exampleRow}`}
                     rows={6}
-                    className="w-full px-4 py-3 text-xs font-mono text-slate-300 placeholder:text-slate-700 bg-transparent outline-none resize-y rounded-xl [color-scheme:dark]"
+                    className="w-full px-4 py-3 text-xs font-mono text-slate-700 placeholder:text-slate-400 bg-transparent outline-none resize-y rounded-xl"
                     spellCheck={false}
                   />
                   {dragOver && (
                     <div className="absolute inset-0 flex items-center justify-center rounded-xl pointer-events-none">
-                      <p className="text-sm font-semibold text-violet-300">Drop file here</p>
+                      <p className="text-sm font-semibold text-violet-600">Drop file here</p>
                     </div>
                   )}
                 </div>
@@ -378,9 +378,9 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
                   {/* Stats row */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                      <span className="text-xs text-slate-400">{parsed.mapped.length} rows detected</span>
+                    <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <span className="text-xs text-slate-500">{parsed.mapped.length} rows detected</span>
                     </div>
                     {validRows.length > 0 && (
                       <div className="flex items-center gap-1.5 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-lg px-2.5 py-1.5">
@@ -397,19 +397,19 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                   </div>
 
                   {/* Preview table */}
-                  <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl overflow-x-auto">
-                    <div className="px-3 py-2 border-b border-white/[0.06] flex items-center justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Preview {previewRows.length < parsed.mapped.length ? `(first ${previewRows.length} of ${parsed.mapped.length})` : ''}</p>
+                  <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto">
+                    <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Preview {previewRows.length < parsed.mapped.length ? `(first ${previewRows.length} of ${parsed.mapped.length})` : ''}</p>
                     </div>
                     <table className="w-full text-xs border-collapse">
                       <thead>
-                        <tr className="border-b border-white/[0.05]">
-                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-600 w-8">#</th>
+                        <tr className="border-b border-slate-100">
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500 w-8">#</th>
                           {columns.map((c) => {
                             const mapped = !!parsed.colMap[c.key]
                             const autoFilled = !mapped && c.defaultValue != null
                             return (
-                              <th key={c.key} className={`px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap ${mapped ? 'text-slate-500' : autoFilled ? 'text-indigo-400/70' : 'text-slate-800'}`}>
+                              <th key={c.key} className={`px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap ${mapped ? 'text-slate-600' : autoFilled ? 'text-indigo-600' : 'text-slate-300'}`}>
                                 {c.key}
                                 {!mapped && c.required ? ' ⚠' : ''}
                                 {autoFilled && <span className="ml-1 text-[9px] font-normal text-indigo-400/50 normal-case tracking-normal">auto</span>}
@@ -421,16 +421,16 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                       </thead>
                       <tbody>
                         {previewRows.map(({ entry, errors, rowNum }) => (
-                          <tr key={rowNum} className={`border-b border-white/[0.04] last:border-0 ${errors.length ? 'bg-red-500/[0.04]' : ''}`}>
-                            <td className="px-3 py-2 text-slate-700 tabular-nums">{rowNum}</td>
+                          <tr key={rowNum} className={`border-b border-slate-100 last:border-0 ${errors.length ? 'bg-red-50' : ''}`}>
+                            <td className="px-3 py-2 text-slate-400 tabular-nums">{rowNum}</td>
                             {columns.map((c) => {
                               const isAutoFilled = !parsed.colMap[c.key] && c.defaultValue != null && entry[c.key] != null
                               const display = entry[c.key] != null && entry[c.key] !== '' ? String(entry[c.key]) : null
                               return (
                                 <td key={c.key} className="px-3 py-2 max-w-[140px] truncate font-mono" title={display ?? ''}>
                                   {display
-                                    ? <span className={isAutoFilled ? 'text-indigo-300/60 italic' : 'text-slate-400'}>{display}</span>
-                                    : <span className="text-slate-800">—</span>}
+                                    ? <span className={isAutoFilled ? 'text-indigo-500/70 italic' : 'text-slate-600'}>{display}</span>
+                                    : <span className="text-slate-300">—</span>}
                                 </td>
                               )
                             })}
@@ -438,7 +438,7 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                               {errors.length > 0 && (
                                 <div className="group relative">
                                   <svg className="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd"/></svg>
-                                  <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block z-10 bg-slate-800 border border-white/[0.1] rounded-lg px-2.5 py-2 w-56 text-[11px] text-red-300 shadow-xl">
+                                  <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block z-10 bg-white border border-slate-200 rounded-lg px-2.5 py-2 w-56 text-[11px] text-red-600 shadow-lg">
                                     {errors.map((e, i) => <p key={i}>{e}</p>)}
                                   </div>
                                 </div>
@@ -457,8 +457,8 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
         {/* Footer */}
         {!result && (
-          <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t border-white/[0.07] bg-white/[0.02]">
-            <p className="text-xs text-slate-600">
+          <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50">
+            <p className="text-xs text-slate-500">
               {parsed ? (
                 validRows.length > 0
                   ? `Ready to import ${validRows.length} row${validRows.length !== 1 ? 's' : ''}${invalidRows.length ? ` · ${invalidRows.length} will be skipped` : ''}`
@@ -466,11 +466,11 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
               ) : 'Paste CSV data or upload a file above'}
             </p>
             <div className="flex gap-2">
-              <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-400 hover:text-white border border-white/[0.08] hover:border-white/20 rounded-xl transition-all">Cancel</button>
+              <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
               <button
                 onClick={handleImport}
                 disabled={!validRows.length || importing || (parsed?.missingRequired.length > 0)}
-                className="inline-flex items-center gap-2 px-4 py-1.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all shadow-lg shadow-violet-900/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-1.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all shadow-lg shadow-violet-200/80 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {importing ? (
                   <>

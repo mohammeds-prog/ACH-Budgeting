@@ -40,8 +40,8 @@ function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) 
         onClick={handleToggle}
         disabled={disabled}
         className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all
-          ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:border-white/20'}
-          bg-slate-800/80 border-white/[0.1] text-slate-200`}
+          ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300'}
+          bg-white border-slate-200 text-slate-700`}
       >
         <span className={current.color}>{current.label}</span>
         {!disabled && (
@@ -52,14 +52,14 @@ function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) 
       </button>
       {open && dropPos && (
         <div style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.minWidth, zIndex: 9999 }}
-          className="bg-slate-900 border border-white/[0.1] rounded-xl shadow-2xl shadow-black/50 py-1">
+          className="bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/80 py-1">
           {options.map((r) => (
             <button
               key={r.value}
               type="button"
               onClick={() => { onChange(r.value); setOpen(false) }}
               className={`w-full text-left px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors
-                ${value === r.value ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]'}
+                ${value === r.value ? 'bg-indigo-600' : 'hover:bg-slate-50'}
                 ${r.color}`}
             >
               {r.label}
@@ -71,45 +71,45 @@ function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) 
   )
 }
 
-const darkCard = 'bg-white/[0.04] border border-white/[0.08] rounded-2xl'
+const darkCard = 'glass-card rounded-2xl'
 
 const ROLE_CAPS = {
   admin: [
-    { label: 'Full Access',         color: 'bg-red-500/10 border-red-500/20 text-red-300' },
-    { label: 'Admin Panel',         color: 'bg-red-500/10 border-red-500/20 text-red-300' },
-    { label: 'Add · Edit · Delete', color: 'bg-red-500/10 border-red-500/20 text-red-300' },
-    { label: 'Import',              color: 'bg-red-500/10 border-red-500/20 text-red-300' },
-    { label: 'Transfer Complete',   color: 'bg-red-500/10 border-red-500/20 text-red-300' },
+    { label: 'Full Access',         color: 'bg-red-50 border-red-200 text-red-700' },
+    { label: 'Admin Panel',         color: 'bg-red-50 border-red-200 text-red-700' },
+    { label: 'Add · Edit · Delete', color: 'bg-red-50 border-red-200 text-red-700' },
+    { label: 'Import',              color: 'bg-red-50 border-red-200 text-red-700' },
+    { label: 'Transfer Complete',   color: 'bg-red-50 border-red-200 text-red-700' },
   ],
   management: [
-    { label: 'Admin Panel',                 color: 'bg-amber-500/10 border-amber-500/20 text-amber-300' },
-    { label: 'ACH + Budget always on',      color: 'bg-amber-500/10 border-amber-500/20 text-amber-300' },
-    { label: 'Edit: Notes · Initials',      color: 'bg-amber-500/10 border-amber-500/20 text-amber-300' },
-    { label: 'Edit: Status · Match',        color: 'bg-amber-500/10 border-amber-500/20 text-amber-300' },
-    { label: 'Edit: Received By · Belongs', color: 'bg-amber-500/10 border-amber-500/20 text-amber-300' },
-    { label: 'No Add · Delete · Import',    color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
-    { label: 'No Transfer Complete',        color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
+    { label: 'Admin Panel',                 color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    { label: 'ACH + Budget always on',      color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    { label: 'Edit: Notes · Initials',      color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    { label: 'Edit: Status · Match',        color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    { label: 'Edit: Received By · Belongs', color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    { label: 'No Add · Delete · Import',    color: 'bg-slate-100 border-slate-200 text-slate-500' },
+    { label: 'No Transfer Complete',        color: 'bg-slate-100 border-slate-200 text-slate-500' },
   ],
   user: [
-    { label: 'Edit: Notes · Initials',   color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
-    { label: 'Edit: Status · Match',     color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
-    { label: 'Edit: Belongs To',         color: 'bg-violet-500/10 border-violet-500/20 text-violet-300' },
-    { label: 'No Add · Delete · Import', color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
-    { label: 'No Transfer Complete',     color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
+    { label: 'Edit: Notes · Initials',   color: 'bg-violet-50 border-violet-200 text-violet-700' },
+    { label: 'Edit: Status · Match',     color: 'bg-violet-50 border-violet-200 text-violet-700' },
+    { label: 'Edit: Belongs To',         color: 'bg-violet-50 border-violet-200 text-violet-700' },
+    { label: 'No Add · Delete · Import', color: 'bg-slate-100 border-slate-200 text-slate-500' },
+    { label: 'No Transfer Complete',     color: 'bg-slate-100 border-slate-200 text-slate-500' },
   ],
   viewer: [
-    { label: 'Read-only',              color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
-    { label: 'No Edits',               color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
-    { label: 'Access via module toggle', color: 'bg-slate-500/10 border-slate-500/20 text-slate-400' },
+    { label: 'Read-only',                color: 'bg-slate-100 border-slate-200 text-slate-500' },
+    { label: 'No Edits',                 color: 'bg-slate-100 border-slate-200 text-slate-500' },
+    { label: 'Access via module toggle', color: 'bg-slate-100 border-slate-200 text-slate-500' },
   ],
 }
 
 function Toggle({ checked, onChange, color = 'violet', disabled = false }) {
-  const on = color === 'indigo' ? 'bg-indigo-500' : 'bg-violet-500'
+  const on = color === 'indigo' ? 'bg-indigo-500' : 'bg-indigo-6000'
   return (
     <button
       onClick={() => !disabled && onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${checked ? on : 'bg-white/[0.1]'} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${checked ? on : 'bg-slate-300'} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     >
       <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-1'}`} />
     </button>
@@ -146,18 +146,18 @@ function SetPasswordModal({ user, onClose }) {
     }
   }
 
-  const inputCls = 'w-full px-3 py-2 text-sm bg-slate-800 border border-white/[0.1] rounded-xl text-white placeholder:text-white/25 outline-none focus:border-violet-400/70 focus:ring-1 focus:ring-violet-400/20 transition-all'
+  const inputCls = 'w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100/50 transition-all'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-sm z-10">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07]">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 w-full max-w-sm z-10">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-semibold text-white">Set Password</h2>
+            <h2 className="text-base font-semibold text-slate-900">Set Password</h2>
             <p className="text-xs text-slate-500 mt-0.5">{user.full_name || user.email}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -167,8 +167,8 @@ function SetPasswordModal({ user, onClose }) {
               <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3">
                 <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
               </div>
-              <p className="text-sm font-semibold text-emerald-300">Password updated</p>
-              <button onClick={onClose} className="mt-4 px-4 py-1.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all">Done</button>
+              <p className="text-sm font-semibold text-emerald-700">Password updated</p>
+              <button onClick={onClose} className="mt-4 px-4 py-1.5 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all">Done</button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -185,8 +185,8 @@ function SetPasswordModal({ user, onClose }) {
               </div>
               {error && <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-white/[0.08] hover:border-white/20 rounded-xl transition-all">Cancel</button>
-                <button type="submit" disabled={saving || !password} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all disabled:opacity-50">
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
+                <button type="submit" disabled={saving || !password} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all disabled:opacity-50">
                   {saving ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</> : 'Set Password'}
                 </button>
               </div>
@@ -230,16 +230,16 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
     }
   }
 
-  const inputCls = 'w-full px-3 py-2 text-sm bg-slate-800 border border-white/[0.1] rounded-xl text-white placeholder:text-white/25 outline-none focus:border-violet-400/70 focus:ring-1 focus:ring-violet-400/20 transition-all'
+  const inputCls = 'w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100/50 transition-all'
   const labelCls = 'block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-md z-10">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07]">
-          <h2 className="text-base font-semibold text-white">Add User</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 w-full max-w-md z-10">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-base font-semibold text-slate-900">Add User</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -279,7 +279,7 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
             </div>
           </div>
 
-          <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3">
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">Role permissions</p>
             {(() => {
               const perms = {
@@ -296,8 +296,8 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
           {error && <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
 
           <div className="flex gap-2 justify-end pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-white/[0.08] hover:border-white/20 rounded-xl transition-all">Cancel</button>
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all disabled:opacity-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all disabled:opacity-50">
               {saving ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating…</> : 'Create User'}
             </button>
           </div>
@@ -370,21 +370,19 @@ export default function AdminPage() {
 
 
   return (
-    <div className="min-h-screen bg-slate-900 relative">
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-800/40 via-slate-900 to-slate-900 pointer-events-none" />
-
+    <div className="min-h-screen futuristic-bg relative">
       <div className="relative z-10">
         <AppHeader />
 
         {/* Hero */}
-        <div className="border-b border-white/[0.06] bg-gradient-to-br from-slate-800/40 via-slate-900/80 to-slate-900">
+        <div className="border-b border-slate-200 bg-white">
           <div className="max-w-screen-lg mx-auto px-6 py-8 flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-slate-400/80 text-xs font-semibold uppercase tracking-widest mb-1">Admin</p>
-              <h1 className="text-3xl font-bold text-white tracking-tight">User Management</h1>
-              <p className="text-slate-400 text-sm mt-1.5">Manage accounts and module access for your team</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Admin</p>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">User Management</h1>
+              <p className="text-slate-500 text-sm mt-1.5">Manage accounts and module access for your team</p>
             </div>
-            <button onClick={() => setAddModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all shadow-lg shadow-violet-900/30 active:scale-[0.98]">
+            <button onClick={() => setAddModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all shadow-lg shadow-violet-900/30 active:scale-[0.98]">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
               Add User
             </button>
@@ -407,9 +405,9 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06]">
+                    <tr className="border-b border-slate-100">
                       {['User', 'Role', 'Permissions', 'Module Access', ''].map((h) => (
-                        <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500 bg-white/[0.02]">{h}</th>
+                        <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500 bg-slate-50">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -417,17 +415,17 @@ export default function AdminPage() {
                     {profiles.map((p) => {
                       const isSelf = p.id === profile?.id
                       return (
-                        <tr key={p.id} className="group border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
+                        <tr key={p.id} className="group border-b border-slate-100 last:border-0 hover:bg-violet-50/50 transition-colors">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
                                 {(p.full_name || p.email).charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-200 text-sm">{p.full_name || <span className="text-slate-500 italic">No name</span>}</p>
+                                <p className="font-semibold text-slate-800 text-sm">{p.full_name || <span className="text-slate-500 italic">No name</span>}</p>
                                 <p className="text-xs text-slate-500">{p.email}</p>
                               </div>
-                              {isSelf && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.07] text-slate-500 font-medium">You</span>}
+                              {isSelf && <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-600 text-white font-semibold tracking-wide">You</span>}
                             </div>
                           </td>
                           <td className="px-5 py-4">
@@ -454,7 +452,7 @@ export default function AdminPage() {
                                   color="indigo"
                                   disabled={(!isAdmin && !isManagement) || p.role === 'admin' || p.role === 'management'}
                                 />
-                                <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_ach ? 'text-indigo-300' : 'text-slate-500'}`}>ACH</span>
+                                <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_ach ? 'text-indigo-700' : 'text-slate-500'}`}>ACH</span>
                               </label>
                               <label className="flex items-center gap-2 cursor-pointer">
                                 <Toggle
@@ -463,7 +461,7 @@ export default function AdminPage() {
                                   color="violet"
                                   disabled={(!isAdmin && !isManagement) || p.role === 'admin' || p.role === 'management'}
                                 />
-                                <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_budgeting ? 'text-violet-300' : 'text-slate-500'}`}>Supply Budget</span>
+                                <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_budgeting ? 'text-violet-700' : 'text-slate-500'}`}>Supply Budget</span>
                               </label>
                             </div>
                           </td>
@@ -472,7 +470,7 @@ export default function AdminPage() {
                               {!(isManagement && p.role === 'admin') && (
                                 <button
                                   onClick={() => setSetPwUser(p)}
-                                  className="px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all whitespace-nowrap"
+                                  className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all whitespace-nowrap"
                                 >
                                   Set Password
                                 </button>
@@ -503,15 +501,15 @@ export default function AdminPage() {
 
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDeleteId(null)} />
-          <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl p-6 w-80 z-10">
-            <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/20 flex items-center justify-center mb-4">
-              <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setConfirmDeleteId(null)} />
+          <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 p-6 w-80 z-10">
+            <div className="w-10 h-10 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center mb-4">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
             </div>
-            <h3 className="font-semibold text-white mb-1">Delete this user?</h3>
-            <p className="text-sm text-slate-400 mb-5">Their account and profile will be permanently removed.</p>
+            <h3 className="font-semibold text-slate-900 mb-1">Delete this user?</h3>
+            <p className="text-sm text-slate-600 mb-5">Their account and profile will be permanently removed.</p>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmDeleteId(null)} className="px-3 py-1.5 text-sm font-medium text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] rounded-lg transition-all">Cancel</button>
+              <button onClick={() => setConfirmDeleteId(null)} className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all">Cancel</button>
               <button onClick={() => handleDelete(confirmDeleteId)} disabled={deleting} className="px-3 py-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-all disabled:opacity-50">
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>

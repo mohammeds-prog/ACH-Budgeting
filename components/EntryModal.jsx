@@ -9,7 +9,7 @@ import Select from './Select'
 const EMPTY = { postingDate: '', details: '', description: '', insuranceName: '', amount: '', fromLocation: '', location: '', match: '', status: '', initials: '', splits: null }
 const EMPTY_SPLIT = { location: '', amount: '' }
 
-const inp    = 'w-full px-3 py-2 text-sm bg-slate-800/80 border border-white/[0.08] rounded-xl text-white placeholder:text-white/25 outline-none transition-all duration-150 focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 [color-scheme:dark]'
+const inp    = 'w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100/50'
 const inpErr = 'border-red-500/50 focus:border-red-500/60 focus:ring-red-500/20'
 
 const DETAILS_OPTS  = [{ value: 'CREDIT', label: 'CREDIT' }, { value: 'DEBIT', label: 'DEBIT' }]
@@ -102,15 +102,15 @@ export default function EntryModal({ entry, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-lg z-10 overflow-y-auto max-h-[90vh]">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 w-full max-w-lg z-10 overflow-y-auto max-h-[90vh]">
 
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.07]">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-semibold text-white">{entry ? 'Edit Entry' : 'Add ACH Entry'}</h2>
-            <p className="text-xs text-white/35 mt-0.5">Fill in the transaction details below</p>
+            <h2 className="text-base font-semibold text-slate-900">{entry ? 'Edit Entry' : 'Add ACH Entry'}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Fill in the transaction details below</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/>
             </svg>
@@ -158,7 +158,7 @@ export default function EntryModal({ entry, onSave, onClose }) {
                   if (detected) set('insuranceName', detected)
                 }}
                 title="Auto-detect from description"
-                className="px-2.5 py-1.5 text-xs text-slate-400 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] rounded-xl transition-all shrink-0"
+                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shrink-0"
               >
                 Detect
               </button>
@@ -172,12 +172,12 @@ export default function EntryModal({ entry, onSave, onClose }) {
           {/* To Location with split toggle */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest text-white/40">To Location</label>
+              <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">To Location</label>
               <button type="button" onClick={() => toggleSplit(!isSplit)} className="flex items-center gap-1.5">
-                <div className={`relative w-7 h-4 rounded-full transition-colors ${isSplit ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                <div className={`relative w-7 h-4 rounded-full transition-colors ${isSplit ? 'bg-indigo-500' : 'bg-slate-300'}`}>
                   <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-150 ${isSplit ? 'translate-x-3' : 'translate-x-0'}`} />
                 </div>
-                <span className="text-[11px] font-medium text-white/40">Split payment</span>
+                <span className="text-[11px] font-medium text-slate-500">Split payment</span>
               </button>
             </div>
 
@@ -234,9 +234,9 @@ export default function EntryModal({ entry, onSave, onClose }) {
             </F>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.07]">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-white/[0.08] hover:border-white/20 rounded-xl transition-all">Cancel</button>
-            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-900/30 active:scale-[0.98]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
+            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-200/80 active:scale-[0.98]">
               {entry ? 'Save changes' : 'Add entry'}
             </button>
           </div>
@@ -249,7 +249,7 @@ export default function EntryModal({ entry, onSave, onClose }) {
 function F({ label, required, error, children }) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold uppercase tracking-widest text-white/40 mb-1.5">
+      <label className="block text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {children}

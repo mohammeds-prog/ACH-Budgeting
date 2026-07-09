@@ -6,7 +6,8 @@ import AppHeader from '@/components/AppHeader'
 import FilterBar from '@/components/FilterBar'
 import ACHTable from '@/components/ACHTable'
 import EntryModal from '@/components/EntryModal'
-import { getEntries, saveEntry, deleteEntry, bulkInsertEntries, getUniqueInsurers, saveNotes, markTransferComplete } from '@/lib/storage'
+import { getEntries, saveEntry, deleteEntry, bulkInsertEntries, getUniqueInsurers, saveNotes, markTransferComplete, getAttachmentCounts } from '@/lib/storage'
+import AttachmentsPanel from '@/components/AttachmentsPanel'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import ImportModal, { parseFlexDate, fuzzyLocation, parseAmount } from '@/components/ImportModal'
 import { logActivity } from '@/lib/activityLog'
@@ -72,6 +73,8 @@ export default function ACHPage() {
   const [modal, setModal] = useState(false)
   const [modalEntry, setModalEntry] = useState(null)
   const [importModal, setImportModal] = useState(false)
+  const [attachmentsEntry, setAttachmentsEntry] = useState(null)
+  const [attachmentCounts, setAttachmentCounts] = useState({})
   const [editingId, setEditingId] = useState(null)
   const [editRow, setEditRow] = useState(EMPTY_ROW)
   const [saving, setSaving] = useState(false)
@@ -87,6 +90,9 @@ export default function ACHPage() {
     getUniqueInsurers()
       .then(setAllInsurers)
       .catch((e) => console.error('Failed to load insurers:', e))
+    getAttachmentCounts()
+      .then(setAttachmentCounts)
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -431,29 +437,23 @@ export default function ACHPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 relative">
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-indigo-950/50 via-slate-900 to-slate-900 pointer-events-none" />
-      <div className="fixed inset-0 opacity-[0.025] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #818cf8 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-      <div className="fixed top-0 left-1/3 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen futuristic-bg relative">
       <div className="relative z-10">
         <AppHeader />
 
         {/* Hero */}
-        <div className="relative overflow-hidden border-b border-white/[0.06]">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/60 via-slate-900/80 to-slate-900" />
-          <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="futuristic-hero">
           <div className="relative w-full px-6 py-10 z-10">
             <div className="max-w-screen-xl mx-auto">
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-indigo-300/80 text-xs font-semibold uppercase tracking-widest mb-2">Documents</p>
-                <h1 className="text-3xl font-bold text-white tracking-tight">ACH Tracker</h1>
-                <p className="text-slate-400 text-sm mt-1.5">Filter, review and manage ACH transactions</p>
+                <p className="text-indigo-500 text-xs font-semibold uppercase tracking-widest mb-2">Documents</p>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">ACH Tracker</h1>
+                <p className="text-slate-500 text-sm mt-1.5">Filter, review and manage ACH transactions</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 {can(profile, 'ach_import') && (
-                  <button onClick={() => setImportModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition-all">
+                  <button onClick={() => setImportModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                     Import
                   </button>
@@ -470,30 +470,30 @@ export default function ACHPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3 mt-8">
               {[
-                { label: 'Entries',            value: statsEntries.length.toLocaleString(),             color: 'text-white',       onClick: null,
+                { label: 'Entries',            value: statsEntries.length.toLocaleString(),             color: 'text-slate-900',    onClick: null,
                   hint: 'Total number of ACH entries matching the current filters.' },
-                { label: 'Total Received',     value: loading ? '—' : fmt(bankReceived),                color: 'text-sky-400',     onClick: null,
+                { label: 'Total Received',     value: loading ? '—' : fmt(bankReceived),                color: 'text-violet-600',      onClick: null,
                   hint: `Full payment amounts received by ${selectedLocation === ALL ? 'each location\'s' : `${selectedLocation.replace('Valley View Dental ', '')}'s`} bank account. Updates only when the location tab changes.` },
-                { label: 'Allocated Amount',   value: loading ? '—' : fmt(total),                       color: total < 0 ? 'text-red-400' : 'text-emerald-400', onClick: null,
+                { label: 'Allocated Amount',   value: loading ? '—' : fmt(total),                       color: total < 0 ? 'text-red-600' : 'text-emerald-600', onClick: null,
                   hint: 'Amount allocated to this location. For split payments, only this location\'s share is counted.' },
-                { label: 'Matched',            value: `${statsEntries.length - unmatched}`,             color: 'text-emerald-400', onClick: () => setFilters((f) => ({ ...f, match: f.match === 'Yes' ? '' : 'Yes' })),
+                { label: 'Matched',            value: `${statsEntries.length - unmatched}`,             color: 'text-emerald-600',  onClick: () => setFilters((f) => ({ ...f, match: f.match === 'Yes' ? '' : 'Yes' })),
                   hint: 'Entries marked as matched/verified. Click to filter.' },
-                { label: 'Matched Amount',     value: loading ? '—' : fmt(matchedAmount),               color: 'text-emerald-400', onClick: () => setFilters((f) => ({ ...f, match: f.match === 'Yes' ? '' : 'Yes' })),
+                { label: 'Matched Amount',     value: loading ? '—' : fmt(matchedAmount),               color: 'text-emerald-600',  onClick: () => setFilters((f) => ({ ...f, match: f.match === 'Yes' ? '' : 'Yes' })),
                   hint: 'Total dollar value of matched entries. Click to filter.' },
-                { label: 'Unmatched',          value: `${unmatched}`,                                   color: unmatched > 0 ? 'text-red-400' : 'text-emerald-400', onClick: () => setFilters((f) => ({ ...f, match: f.match === 'No' ? '' : 'No' })),
+                { label: 'Unmatched',          value: `${unmatched}`,                                   color: unmatched > 0 ? 'text-red-600' : 'text-emerald-600', onClick: () => setFilters((f) => ({ ...f, match: f.match === 'No' ? '' : 'No' })),
                   hint: 'Entries not yet verified against a claim. Click to filter.' },
-                { label: 'Unmatched Amount',   value: loading ? '—' : fmt(unmatchedAmount),             color: unmatchedAmount > 0 ? 'text-red-400' : 'text-emerald-400', onClick: () => setFilters((f) => ({ ...f, match: f.match === 'No' ? '' : 'No' })),
+                { label: 'Unmatched Amount',   value: loading ? '—' : fmt(unmatchedAmount),             color: unmatchedAmount > 0 ? 'text-red-600' : 'text-emerald-600', onClick: () => setFilters((f) => ({ ...f, match: f.match === 'No' ? '' : 'No' })),
                   hint: 'Total dollar value of unmatched entries. Click to filter.' },
               ].map(({ label, hint, value, color, onClick }) => (
-                <div key={label} onClick={onClick} className={`relative bg-white/[0.06] backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3.5 ${onClick ? 'cursor-pointer hover:bg-white/[0.1] hover:border-white/20 transition-all' : ''}`}>
+                <div key={label} onClick={onClick} className={`relative glass-card rounded-2xl px-4 py-3.5 ${onClick ? 'cursor-pointer hover:bg-white/90 transition-all' : ''}`}>
                   <div className="flex items-start gap-1 mb-1 min-h-[2rem]">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 leading-tight">{label}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 leading-tight">{label}</p>
                     {hint && (
                       <div className="relative group/hint ml-auto shrink-0">
-                        <svg className="w-3 h-3 text-slate-600 hover:text-slate-400 cursor-help transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 text-slate-400 hover:text-slate-600 cursor-help transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M12 16v-4M12 8h.01"/>
                         </svg>
-                        <div className="absolute bottom-full right-0 mb-2 w-52 p-2.5 bg-slate-800 border border-white/10 rounded-xl text-[11px] text-slate-300 leading-relaxed opacity-0 group-hover/hint:opacity-100 pointer-events-none transition-opacity duration-150 z-50 shadow-xl">
+                        <div className="absolute bottom-full right-0 mb-2 w-52 p-2.5 bg-white border border-slate-200 rounded-xl text-[11px] text-slate-700 leading-relaxed opacity-0 group-hover/hint:opacity-100 pointer-events-none transition-opacity duration-150 z-50 shadow-lg">
                           {hint}
                         </div>
                       </div>
@@ -510,15 +510,15 @@ export default function ACHPage() {
         {/* Tabs + filters — constrained width */}
         <div className="max-w-screen-xl mx-auto px-6 pt-4 space-y-4">
           {/* Location tabs */}
-          <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl overflow-hidden">
-            <div className="flex overflow-x-auto divide-x divide-white/[0.05]">
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <div className="flex overflow-x-auto divide-x divide-white/40">
               {/* Custom tab */}
               <button
                 onClick={() => { setSelectedLocation(CUSTOM); cancelEdit() }}
                 className={`flex-1 min-w-[100px] px-4 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 flex items-center justify-center gap-1.5 ${
                   selectedLocation === CUSTOM
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-300'
-                    : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
+                    ? 'border-amber-500 bg-amber-50 text-amber-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/50'
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -526,7 +526,7 @@ export default function ACHPage() {
                 </svg>
                 Inter Office Transfers
                 {(filters.receivedBy?.length > 0 || filters.belongsTo?.length > 0) && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500/30 text-amber-300 text-[10px] font-bold">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">
                     {(filters.receivedBy?.length || 0) + (filters.belongsTo?.length || 0)}
                   </span>
                 )}
@@ -538,8 +538,8 @@ export default function ACHPage() {
                   onClick={() => { setSelectedLocation(key); cancelEdit() }}
                   className={`flex-1 min-w-[100px] px-4 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
                     selectedLocation === key
-                      ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
-                      : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                 >
                   {label}
@@ -550,16 +550,16 @@ export default function ACHPage() {
 
           {/* Custom tab — Received By / Belongs To panel */}
           {selectedLocation === CUSTOM && (
-            <div className="bg-white/[0.04] border border-amber-500/20 rounded-2xl p-4 space-y-3">
+            <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-amber-400/70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
                 </svg>
-                <span className="text-[11px] font-semibold text-amber-400/70 uppercase tracking-widest">Inter Office Transfers</span>
+                <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-widest">Inter Office Transfers</span>
               </div>
               <div className="flex flex-wrap gap-6">
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">Transfer Status</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Transfer Status</span>
                   <div className="flex gap-1.5">
                     {[{ label: 'Pending', tc: false }, { label: 'Transferred', tc: true }].map(({ label, tc }) => (
                       <button
@@ -568,9 +568,9 @@ export default function ACHPage() {
                         className={`px-2.5 py-1 text-xs rounded-lg border transition-all whitespace-nowrap ${
                           showTCView === tc
                             ? tc
-                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                              : 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                            : 'bg-slate-800/80 border-white/[0.08] text-slate-400 hover:text-slate-200 hover:border-white/20'
+                              ? 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                              : 'bg-amber-100 border-amber-300 text-amber-700'
+                            : 'bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300'
                         }`}
                       >
                         {label}
@@ -579,7 +579,7 @@ export default function ACHPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">Received By</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Received By</span>
                   <div className="flex gap-1.5 flex-wrap">
                     {SHORT_LOCS.map(({ full, short }) => (
                       <button
@@ -587,8 +587,8 @@ export default function ACHPage() {
                         onClick={() => toggleReceivedBy(full)}
                         className={`px-2.5 py-1 text-xs rounded-lg border transition-all whitespace-nowrap ${
                           (filters.receivedBy || []).includes(full)
-                            ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
-                            : 'bg-slate-800/80 border-white/[0.08] text-slate-400 hover:text-slate-200 hover:border-white/20'
+                            ? 'bg-violet-100 border-violet-300 text-violet-700'
+                            : 'bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300'
                         }`}
                       >
                         {short}
@@ -597,7 +597,7 @@ export default function ACHPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">Belongs To</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Belongs To</span>
                   <div className="flex gap-1.5 flex-wrap">
                     {SHORT_LOCS.map(({ full, short }) => (
                       <button
@@ -605,8 +605,8 @@ export default function ACHPage() {
                         onClick={() => toggleBelongsTo(full)}
                         className={`px-2.5 py-1 text-xs rounded-lg border transition-all whitespace-nowrap ${
                           (filters.belongsTo || []).includes(full)
-                            ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
-                            : 'bg-slate-800/80 border-white/[0.08] text-slate-400 hover:text-slate-200 hover:border-white/20'
+                            ? 'bg-violet-100 border-violet-300 text-violet-700'
+                            : 'bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300'
                         }`}
                       >
                         {short}
@@ -624,13 +624,13 @@ export default function ACHPage() {
         {/* Table — full width */}
         <div className="px-40 pt-4 pb-8 space-y-4">
           {/* View toggle */}
-          <div className="flex items-center gap-1 bg-white/[0.04] border border-white/[0.08] rounded-xl p-1 self-start w-fit">
+          <div className="flex items-center gap-1 glass-card rounded-xl p-1 self-start w-fit">
             <button
               onClick={() => setShowTCView(false)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                 !showTCView
-                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               All Entries {!loading && <span className="ml-1 opacity-60">({filtered.length})</span>}
@@ -639,8 +639,8 @@ export default function ACHPage() {
               onClick={() => setShowTCView(true)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                 showTCView
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -651,7 +651,7 @@ export default function ACHPage() {
           </div>
 
           {loading ? (
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex items-center justify-center py-24">
+            <div className="glass-card rounded-2xl flex items-center justify-center py-24">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin" />
                 <span className="text-sm text-slate-400">Loading entries…</span>
@@ -686,21 +686,23 @@ export default function ACHPage() {
                 onTransferComplete={handleTransferComplete}
                 onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}
                 profile={profile}
+                attachmentCounts={attachmentCounts}
+                onOpenAttachments={setAttachmentsEntry}
               />
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 bg-white/[0.04] border border-white/[0.08] rounded-2xl">
+                <div className="flex items-center justify-between px-5 py-3 glass-card rounded-2xl">
                   <span className="text-xs text-slate-500">
                     {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(page * PAGE_SIZE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} entries
                   </span>
                   <div className="flex items-center gap-1">
                     <button onClick={() => setPage((p) => p - 1)} disabled={page === 1}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
                       Prev
                     </button>
-                    <span className="px-3 text-xs text-slate-400 tabular-nums">Page {page} of {totalPages}</span>
+                    <span className="px-3 text-xs text-slate-500 tabular-nums">Page {page} of {totalPages}</span>
                     <button onClick={() => setPage((p) => p + 1)} disabled={page === totalPages}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       Next
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
@@ -711,13 +713,13 @@ export default function ACHPage() {
           ) : (
             <>
               {tcFiltered.length === 0 ? (
-                <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex items-center justify-center py-24">
+                <div className="glass-card rounded-2xl flex items-center justify-center py-24">
                   <div className="flex flex-col items-center gap-3 text-center">
-                    <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
                     </svg>
-                    <span className="text-sm text-slate-400">No transfer complete entries yet</span>
-                    <span className="text-xs text-slate-600">Mark entries as complete from the Inter Office Transfers tab</span>
+                    <span className="text-sm text-slate-500">No transfer complete entries yet</span>
+                    <span className="text-xs text-slate-400">Mark entries as complete from the Inter Office Transfers tab</span>
                   </div>
                 </div>
               ) : (
@@ -743,27 +745,29 @@ export default function ACHPage() {
                   canEditMatch={can(profile, 'ach_edit_match')}
                   canDelete={can(profile, 'ach_delete')}
                   onSaveSplit={handleSaveSplit}
-                onSaveNotes={handleSaveNotes}
+                  onSaveNotes={handleSaveNotes}
                   showTransferComplete={false}
                   onTransferComplete={handleTransferComplete}
                   onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}
                   profile={profile}
+                  attachmentCounts={attachmentCounts}
+                  onOpenAttachments={setAttachmentsEntry}
                 />
               )}
               {tcTotalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 bg-white/[0.04] border border-white/[0.08] rounded-2xl">
+                <div className="flex items-center justify-between px-5 py-3 glass-card rounded-2xl">
                   <span className="text-xs text-slate-500">
                     {((tcPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(tcPage * PAGE_SIZE, tcFiltered.length).toLocaleString()} of {tcFiltered.length.toLocaleString()} entries
                   </span>
                   <div className="flex items-center gap-1">
                     <button onClick={() => setTcPage((p) => p - 1)} disabled={tcPage === 1}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
                       Prev
                     </button>
-                    <span className="px-3 text-xs text-slate-400 tabular-nums">Page {tcPage} of {tcTotalPages}</span>
+                    <span className="px-3 text-xs text-slate-500 tabular-nums">Page {tcPage} of {tcTotalPages}</span>
                     <button onClick={() => setTcPage((p) => p + 1)} disabled={tcPage === tcTotalPages}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
                       Next
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
                     </button>
@@ -776,6 +780,15 @@ export default function ACHPage() {
       </div>
       {modal && <EntryModal entry={null} onSave={handleNewEntry} onClose={() => setModal(false)} />}
       {modalEntry && <EntryModal entry={modalEntry} onSave={handleModalSave} onClose={() => setModalEntry(null)} />}
+      {attachmentsEntry && (
+        <AttachmentsPanel
+          entryId={attachmentsEntry.id}
+          entryDescription={attachmentsEntry.description}
+          uploaderEmail={profile?.email}
+          onClose={() => setAttachmentsEntry(null)}
+          onCountChange={(id, count) => setAttachmentCounts((prev) => ({ ...prev, [id]: count }))}
+        />
+      )}
       {importModal && (
         <ImportModal
           title="Import ACH Entries"

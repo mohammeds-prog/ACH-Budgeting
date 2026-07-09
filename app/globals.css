@@ -19,7 +19,8 @@
 
   body {
     font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    @apply bg-slate-50 text-slate-900 antialiased;
+    background-color: #ece8ff;
+    @apply text-slate-900 antialiased;
     font-feature-settings: 'cv11', 'ss01';
   }
 
@@ -41,6 +42,66 @@
 @layer components {
   .card {
     @apply bg-white border border-slate-200/80 rounded-2xl shadow-sm;
+  }
+
+  .futuristic-bg {
+    background-color: #ece8ff;
+    background-image:
+      /* Top-right: vivid violet */
+      radial-gradient(ellipse 78% 64% at 106%  -4%,  rgba(124, 58,237,0.58)  0%, transparent 52%),
+      /* Top-left: deep indigo bloom */
+      radial-gradient(ellipse 54% 44% at  -5%  18%,  rgba( 79, 70,229,0.42)  0%, transparent 48%),
+      /* Bottom-center: purple anchor */
+      radial-gradient(ellipse 64% 52% at  48% 116%,  rgba(109, 40,217,0.44)  0%, transparent 50%),
+      /* Bottom-left: violet depth */
+      radial-gradient(ellipse 38% 32% at   3%  86%,  rgba(124, 58,237,0.28)  0%, transparent 48%),
+      /* Mid-right: rose-violet shimmer */
+      radial-gradient(ellipse 34% 30% at  98%  58%,  rgba(168, 85,247,0.42)  0%, transparent 46%),
+      /* Soft center wash */
+      radial-gradient(ellipse 88% 66% at  50%  50%,  rgba(139, 92,246,0.06)  0%, transparent 68%),
+      /* Dot grid */
+      radial-gradient(circle at 1px 1px,              rgba( 99,102,241,0.13)  1.5px, transparent 0);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 20px 20px;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(139, 92, 246, 0.22);
+    box-shadow:
+      0 12px 40px -6px rgba(79,70,229,0.18),
+      0 4px 12px   rgba(124,58,237,0.08),
+      inset 0 1px 0 rgba(255,255,255,1.0);
+  }
+
+  /* Violet-tinted table headers inside glass cards */
+  .glass-card thead th {
+    background: linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(99,102,241,0.04) 100%) !important;
+    border-bottom: 1px solid rgba(124,58,237,0.14) !important;
+  }
+
+  .futuristic-hero {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(124,58,237,0.18);
+    background: linear-gradient(125deg,
+      rgba(255,255,255,0.96)  0%,
+      rgba(238,232,255,0.92) 35%,
+      rgba(220,210,255,0.88) 65%,
+      rgba(210,200,255,0.86) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .futuristic-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 72% 110% at 108%   5%, rgba(124, 58,237,0.34) 0%, transparent 55%),
+      radial-gradient(ellipse 58%  75% at  -4%  95%, rgba( 79, 70,229,0.26) 0%, transparent 50%),
+      radial-gradient(ellipse 40%  52% at  90%  88%, rgba(168, 85,247,0.20) 0%, transparent 46%),
+      radial-gradient(ellipse 28%  40% at  50%   0%, rgba(139, 92,246,0.16) 0%, transparent 52%);
+    pointer-events: none;
   }
 
   .btn-primary {
@@ -70,4 +131,10 @@
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide;
   }
+}
+
+@keyframes aurora-pulse {
+  0%,  100% { opacity: 1;    transform: scale(1)    translate(  0%,    0%); }
+  33%        { opacity: 0.78; transform: scale(1.08) translate( 2.0%, -1.0%); }
+  66%        { opacity: 0.88; transform: scale(0.96) translate(-1.5%,  1.2%); }
 }

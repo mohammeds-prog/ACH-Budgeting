@@ -82,13 +82,13 @@ export default function CollectionsModal({ collections, onSave, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={saving ? undefined : onClose} />
 
-      <div className="relative bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-lg z-10 max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="relative bg-white border border-violet-200/60 rounded-2xl shadow-2xl shadow-indigo-100/40 w-full max-w-lg z-10 max-h-[90vh] flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-white/[0.07]">
+        <div className="px-6 pt-6 pb-4 border-b border-slate-200">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-base font-semibold text-white">Monthly Collections</h2>
-            <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <h2 className="text-base font-semibold text-slate-900">Monthly Collections</h2>
+            <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/>
               </svg>
@@ -102,10 +102,10 @@ export default function CollectionsModal({ collections, onSave, onClose }) {
               <button
                 key={loc}
                 onClick={() => setActiveLocation(loc)}
-                className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap rounded-lg transition-all ${
+                className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap rounded-lg transition-all border ${
                   activeLocation === loc
-                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.05] border border-transparent'
+                    ? 'bg-violet-100 text-violet-700 border-violet-300'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-violet-50 border-transparent'
                 }`}
               >
                 {shortName(loc)}
@@ -119,10 +119,10 @@ export default function CollectionsModal({ collections, onSave, onClose }) {
               <button
                 key={y}
                 onClick={() => setActiveYear(y)}
-                className={`flex-1 py-1 text-xs font-semibold rounded-lg transition-all ${
+                className={`flex-1 py-1 text-xs font-semibold rounded-lg transition-all border ${
                   activeYear === y
-                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                    : 'text-slate-600 hover:text-slate-300 hover:bg-white/[0.04] border border-transparent'
+                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-transparent'
                 }`}
               >
                 {y}
@@ -138,9 +138,9 @@ export default function CollectionsModal({ collections, onSave, onClose }) {
             const cap = parseFloat(val || 0) * 0.06
             return (
               <div key={key} className="flex items-center gap-3">
-                <span className="text-sm text-slate-400 w-28 shrink-0">{MONTHS[i]}</span>
+                <span className="text-sm text-slate-600 w-28 shrink-0">{MONTHS[i]}</span>
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">$</span>
                   <input
                     type="number"
                     min="0"
@@ -149,11 +149,11 @@ export default function CollectionsModal({ collections, onSave, onClose }) {
                     onChange={(e) => set(activeLocation, key, e.target.value)}
                     placeholder="0.00"
                     disabled={saving}
-                    className="w-full pl-7 pr-3 py-1.5 text-sm bg-slate-800/80 border border-white/[0.08] rounded-xl text-white placeholder:text-slate-600 outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 transition-all"
+                    className="w-full pl-7 pr-3 py-1.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-300 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:opacity-50 transition-all"
                   />
                 </div>
                 {val ? (
-                  <span className="text-xs text-violet-400 w-24 text-right shrink-0 font-medium tabular-nums">
+                  <span className="text-xs text-violet-600 w-24 text-right shrink-0 font-medium tabular-nums">
                     → ${cap.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} cap
                   </span>
                 ) : (
@@ -164,18 +164,18 @@ export default function CollectionsModal({ collections, onSave, onClose }) {
           })}
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 mt-2">
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mt-2">
               {error}
             </p>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-white/[0.07]">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-200">
           <button
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 text-sm text-slate-400 hover:text-white border border-white/[0.08] hover:border-white/20 rounded-xl transition-all disabled:opacity-50"
+            className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all disabled:opacity-50"
           >
             Cancel
           </button>

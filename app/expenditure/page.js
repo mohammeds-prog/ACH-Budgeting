@@ -8,6 +8,7 @@ import {
   getCollections, setCollections,
   getExpEntries, saveExpEntry, deleteExpEntry,
   bulkInsertExpEntries,
+  getVendors, addVendorToDB, deleteVendorFromDB,
 } from '@/lib/expenditureStorage'
 import CollectionsModal from '@/components/CollectionsModal'
 import ExpEntryModal from '@/components/ExpEntryModal'
@@ -59,12 +60,41 @@ const iCell = 'w-full px-2 py-1.5 text-xs bg-white border border-slate-200 round
 
 const EMPTY_ROW = { date: '', person: '', vendor: '', description: '', amount: '' }
 
-function EditRow({ row, onChange, onSave, onCancel, saving }) {
+function EditRow({ row, onChange, onSave, onCancel, saving, vendors = [], onAddVendor }) {
+  const [addingVendor, setAddingVendor] = useState(false)
+  const [newVendorName, setNewVendorName] = useState('')
+
+  function confirmNewVendor() {
+    const name = newVendorName.trim()
+    if (!name) return
+    onAddVendor?.(name)
+    onChange('vendor', name)
+    setNewVendorName('')
+    setAddingVendor(false)
+  }
+
   return (
     <tr className="border-b border-violet-300/50 bg-violet-50/60">
       <td className="px-4 py-2"><input type="date" value={row.date || ''} onChange={(e) => onChange('date', e.target.value)} className={iCell} style={{ minWidth: 120 }} /></td>
       <td className="px-4 py-2"><input type="text" value={row.person || ''} onChange={(e) => onChange('person', e.target.value)} placeholder="Name…" className={iCell} style={{ minWidth: 110 }} /></td>
-      <td className="px-4 py-2"><input type="text" value={row.vendor || ''} onChange={(e) => onChange('vendor', e.target.value)} placeholder="Vendor…" className={iCell} style={{ minWidth: 130 }} /></td>
+      <td className="px-4 py-2">
+        {addingVendor ? (
+          <div className="flex gap-1">
+            <input type="text" value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmNewVendor() } if (e.key === 'Escape') { setAddingVendor(false); setNewVendorName('') } }}
+              placeholder="Vendor name…" className={iCell} style={{ minWidth: 110 }} autoFocus />
+            <button type="button" onClick={confirmNewVendor} className="px-2 py-1 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-lg transition-all">Add</button>
+            <button type="button" onClick={() => { setAddingVendor(false); setNewVendorName('') }} className="px-2 py-1 text-xs text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all">✕</button>
+          </div>
+        ) : (
+          <select value={row.vendor || ''} onChange={(e) => { if (e.target.value === '__add__') { setAddingVendor(true); return } onChange('vendor', e.target.value) }}
+            className={`${iCell} appearance-none cursor-pointer`} style={{ minWidth: 130 }}>
+            <option value="">— Vendor —</option>
+            {vendors.map((v) => <option key={v} value={v}>{v}</option>)}
+            <option value="__add__">+ Add new vendor…</option>
+          </select>
+        )}
+      </td>
       <td className="px-4 py-2"><input type="text" value={row.description || ''} onChange={(e) => onChange('description', e.target.value)} placeholder="Item / description…" className={iCell} style={{ minWidth: 200 }} /></td>
       <td className="px-4 py-2"><input type="number" step="0.01" min="0" value={row.amount || ''} onChange={(e) => onChange('amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={iCell} style={{ minWidth: 90 }} /></td>
       <td className="px-4 py-2">
@@ -94,6 +124,25 @@ export default function ExpenditurePage() {
   const [pickerYear, setPickerYear] = useState(now.getFullYear())
   const [selectedLocation, setSelectedLocation] = useState(LOCATIONS[0])
 
+  const [vendors, setVendors] = useState([])
+  const [manageVendorsModal, setManageVendorsModal] = useState(false)
+  const [newVendorInput, setNewVendorInput] = useState('')
+
+  async function addVendor(name) {
+    if (vendors.includes(name)) return
+    try {
+      await addVendorToDB(name)
+      setVendors((prev) => [...prev, name].sort((a, b) => a.localeCompare(b)))
+    } catch { alert('Failed to add vendor.') }
+  }
+
+  async function removeVendor(name) {
+    try {
+      await deleteVendorFromDB(name)
+      setVendors((prev) => prev.filter((v) => v !== name))
+    } catch { alert('Failed to remove vendor.') }
+  }
+
   const [modal, setModal] = useState(false)
   const [collModal, setCollModal] = useState(false)
   const [vendorModal, setVendorModal] = useState(false)
@@ -114,8 +163,8 @@ export default function ExpenditurePage() {
   useEffect(() => { setExpPage(1) }, [selectedMonth, selectedLocation])
 
   useEffect(() => {
-    Promise.all([getExpEntries(), getCollections()])
-      .then(([e, c]) => { setEntries(e); setCollectionsState(c) })
+    Promise.all([getExpEntries(), getCollections(), getVendors()])
+      .then(([e, c, v]) => { setEntries(e); setCollectionsState(c); setVendors(v) })
       .catch((e) => console.error('Failed to load data:', e))
       .finally(() => setLoading(false))
   }, [])
@@ -302,6 +351,10 @@ export default function ExpenditurePage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg>
                   Vendor Analysis
                 </button>
+                <button onClick={() => setManageVendorsModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                  Manage Vendors
+                </button>
                 {can(profile, 'budget_import') && (
                   <button onClick={() => setImportModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
@@ -456,7 +509,7 @@ export default function ExpenditurePage() {
                   </thead>
                   <tbody>
                     {pagedEntries.map((e) => {
-                      if (editingId === e.id) return <EditRow key={e.id} row={editRow} onChange={changeEditRow} onSave={saveEdit} onCancel={cancelEdit} saving={saving} />
+                      if (editingId === e.id) return <EditRow key={e.id} row={editRow} onChange={changeEditRow} onSave={saveEdit} onCancel={cancelEdit} saving={saving} vendors={vendors} onAddVendor={addVendor} />
                       return (
                         <tr key={e.id} id={`exp-row-${e.id}`} className={`group/row border-b border-slate-100 last:border-0 transition-colors ${e.id === highlightId ? 'bg-amber-50 ring-1 ring-inset ring-amber-200' : 'hover:bg-violet-50/40'}`}>
                           <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 tabular-nums text-xs">{fmtDate(e.date)}</td>
@@ -648,7 +701,7 @@ export default function ExpenditurePage() {
           </div>
         )}
 
-        {modal && <ExpEntryModal entry={null} defaultMonth={selectedMonth} defaultLocation={selectedLocation} onSave={handleNewEntry} onClose={() => setModal(false)} />}
+        {modal && <ExpEntryModal entry={null} defaultMonth={selectedMonth} defaultLocation={selectedLocation} vendors={vendors} onAddVendor={addVendor} onSave={handleNewEntry} onClose={() => setModal(false)} />}
         {collModal && <CollectionsModal collections={collections} onSave={handleSaveCollections} onClose={() => setCollModal(false)} />}
         {importModal && (
           <ImportModal
@@ -683,6 +736,57 @@ export default function ExpenditurePage() {
             }}
             onClose={() => setImportModal(false)}
           />
+        )}
+
+        {manageVendorsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setManageVendorsModal(false); setNewVendorInput('') }} />
+            <div className="relative bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-sm z-10 overflow-hidden">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Manage Vendors</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Add or remove vendors from the dropdown</p>
+                </div>
+                <button onClick={() => { setManageVendorsModal(false); setNewVendorInput('') }} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div className="px-6 py-4 space-y-3">
+                {/* Add new */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newVendorInput}
+                    onChange={(e) => setNewVendorInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); if (newVendorInput.trim()) { addVendor(newVendorInput.trim()); setNewVendorInput('') } }
+                    }}
+                    placeholder="New vendor name…"
+                    className="flex-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
+                  />
+                  <button
+                    onClick={() => { if (newVendorInput.trim()) { addVendor(newVendorInput.trim()); setNewVendorInput('') } }}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all active:scale-[0.98]"
+                  >Add</button>
+                </div>
+                {/* Vendor list */}
+                {vendors.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-6">No vendors added yet.</p>
+                ) : (
+                  <ul className="space-y-1 max-h-64 overflow-y-auto">
+                    {vendors.map((v) => (
+                      <li key={v} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 hover:bg-violet-50 group transition-colors">
+                        <span className="text-sm text-slate-800">{v}</span>
+                        <button onClick={() => removeVendor(v)} className="p-1 rounded text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {confirmId && (

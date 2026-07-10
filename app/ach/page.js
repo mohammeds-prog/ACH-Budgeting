@@ -265,7 +265,20 @@ export default function ACHPage() {
     return e.match || 'No'
   }
   const matchedAmount   = statsEntries.filter((e) => effectiveMatch(e) !== 'No').reduce((sum, e) => sum + allocatedAmount(e), 0)
-  const unmatchedAmount = statsEntries.filter((e) => effectiveMatch(e) === 'No').reduce((sum, e) => sum + allocatedAmount(e), 0)
+  const unmatchedAmount = statsEntries.filter((e) => effectiveMatch(e) === 'No').reduce((sum, e) => {
+    const alloc = allocatedAmount(e)
+    // allocatedAmount returns 0 for entries with no location — those amounts are still unresolved.
+    // On All/Custom tabs: entry has no location at all.
+    // On a specific tab: entry was received here (fromLocation) but hasn't been assigned anywhere yet.
+    const isUnallocated = alloc === 0 && !e.location && !(e.splits?.length > 0)
+    if (isUnallocated) {
+      const receivedHere = selectedLocation !== ALL && selectedLocation !== CUSTOM
+        ? e.fromLocation === selectedLocation
+        : true
+      if (receivedHere) return sum + Number(e.amount || 0)
+    }
+    return sum + alloc
+  }, 0)
   const unmatched       = statsEntries.filter((e) => effectiveMatch(e) === 'No').length
   // Bank received = full payment amounts where this location's bank account received the money
   const bankReceived    = entries

@@ -716,15 +716,24 @@ export default function ExpenditurePage() {
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-slate-200 bg-slate-50">
-                        <td className="px-5 py-3.5" />
-                        <td className="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-widest">Total</td>
-                        <td className="px-5 py-3.5 text-right font-bold text-violet-700 tabular-nums">{fmt(vendorTableData.grandTotal)}</td>
-                        <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums text-xs">
-                          {vendorTableData.rows.reduce((s, r) => s + r.count, 0)}
-                        </td>
-                        <td colSpan={2} />
-                      </tr>
+                      {(() => {
+                        const visibleRows = vendorAnalysisFilter.length > 0
+                          ? vendorTableData.rows.filter((r) => vendorAnalysisFilter.includes(r.vendor))
+                          : vendorTableData.rows
+                        const filteredTotal = visibleRows.reduce((s, r) => s + r.total, 0)
+                        const filteredCount = visibleRows.reduce((s, r) => s + r.count, 0)
+                        return (
+                          <tr className="border-t border-slate-200 bg-slate-50">
+                            <td className="px-5 py-3.5" />
+                            <td className="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                              Total{vendorAnalysisFilter.length > 0 && <span className="ml-1 text-violet-500">(filtered)</span>}
+                            </td>
+                            <td className="px-5 py-3.5 text-right font-bold text-violet-700 tabular-nums">{fmt(filteredTotal)}</td>
+                            <td className="px-5 py-3.5 text-right text-slate-600 tabular-nums text-xs">{filteredCount}</td>
+                            <td colSpan={2} />
+                          </tr>
+                        )
+                      })()}
                     </tfoot>
                   </table>
                   {vendorTableData.rows.length > VENDOR_PAGE_SIZE && (

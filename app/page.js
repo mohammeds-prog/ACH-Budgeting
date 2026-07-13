@@ -71,6 +71,8 @@ export default function HomePage() {
     router.replace('/login')
   }
 
+  if (!profile) return null // providers.jsx will redirect to /login
+
   const alwaysOn = profile?.role === 'admin' || profile?.role === 'management'
   const sections = ALL_SECTIONS.filter((s) => {
     if (s.key === 'ach')       return alwaysOn || profile?.can_view_ach

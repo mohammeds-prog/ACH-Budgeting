@@ -146,7 +146,10 @@ export default function ExpenditurePage() {
   const [modal, setModal] = useState(false)
   const [collModal, setCollModal] = useState(false)
   const [vendorModal, setVendorModal] = useState(false)
-  const [vendorModalLocation, setVendorModalLocation] = useState(LOCATIONS[0])
+  const [vendorModalLocations, setVendorModalLocations] = useState([]) // empty = All Locations
+  const [vendorAnalysisFilter, setVendorAnalysisFilter] = useState([])
+  const [vendorAnalysisFilterOpen, setVendorAnalysisFilterOpen] = useState(false)
+  const vendorAnalysisFilterRef = useRef(null)
   const [vendorDatePreset, setVendorDatePreset] = useState('6m')
   const [vendorCustomFrom, setVendorCustomFrom] = useState('')
   const [vendorCustomTo, setVendorCustomTo] = useState('')
@@ -159,8 +162,16 @@ export default function ExpenditurePage() {
   const [editRow, setEditRow] = useState(EMPTY_ROW)
   const [saving, setSaving] = useState(false)
   const [expPage, setExpPage] = useState(1)
-
   useEffect(() => { setExpPage(1) }, [selectedMonth, selectedLocation])
+
+  useEffect(() => {
+    if (!vendorAnalysisFilterOpen) return
+    function handleClick(e) {
+      if (vendorAnalysisFilterRef.current && !vendorAnalysisFilterRef.current.contains(e.target)) setVendorAnalysisFilterOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [vendorAnalysisFilterOpen])
 
   useEffect(() => {
     Promise.all([getExpEntries(), getCollections(), getVendors()])
@@ -258,7 +269,7 @@ export default function ExpenditurePage() {
 
   const vendorTableData = useMemo(() => {
     const filtered = entries.filter((e) => {
-      if (e.clinic !== vendorModalLocation) return false
+      if (vendorModalLocations.length > 0 && !vendorModalLocations.includes(e.clinic)) return false
       if (vendorDateRange.from && e.date < vendorDateRange.from) return false
       if (vendorDateRange.to && e.date > vendorDateRange.to) return false
       return true
@@ -276,7 +287,7 @@ export default function ExpenditurePage() {
       .sort((a, b) => b.total - a.total)
     const grandTotal = rows.reduce((s, r) => s + r.total, 0)
     return { rows, grandTotal }
-  }, [entries, vendorModalLocation, vendorDateRange])
+  }, [entries, vendorModalLocations, vendorDateRange])
 
   async function handleNewEntry(formData) {
     try {
@@ -502,7 +513,11 @@ export default function ExpenditurePage() {
                 <table className="w-full min-w-[640px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      {['Date','Person','Vendor','Item / Description','Amount',''].map((h) => (
+                      {['Date','Person'].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">{h}</th>
+                      ))}
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">Vendor</th>
+                      {['Item / Description','Amount',''].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">{h}</th>
                       ))}
                     </tr>
@@ -562,27 +577,34 @@ export default function ExpenditurePage() {
         {/* ── Vendor Analysis Modal ── */}
         {vendorModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setVendorModal(false)} />
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setVendorModal(false); setVendorAnalysisFilter([]); setVendorAnalysisFilterOpen(false) }} />
             <div className="relative bg-white border border-violet-200/60 rounded-2xl shadow-2xl w-full max-w-3xl z-10 overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
 
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">Vendor Spending Analysis</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Ranked by total spend · {shortName(vendorModalLocation)}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Ranked by total spend · {vendorModalLocations.length === 0 ? 'All Locations' : vendorModalLocations.map(shortName).join(', ')}</p>
                 </div>
-                <button onClick={() => setVendorModal(false)} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                <button onClick={() => { setVendorModal(false); setVendorAnalysisFilter([]); setVendorAnalysisFilterOpen(false) }} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
                 </button>
               </div>
 
               {/* Location tabs + Date filters */}
               <div className="px-6 pt-4 pb-3 border-b border-slate-200 space-y-3 shrink-0">
-                {/* Location pills */}
+                {/* Location pills — multi-select, empty = All */}
                 <div className="flex gap-1 flex-wrap">
+                  <button onClick={() => { setVendorModalLocations([]); setVendorPage(1) }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${vendorModalLocations.length === 0 ? 'bg-violet-100 text-violet-700 border-violet-300' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-violet-50'}`}>
+                    All Locations
+                  </button>
                   {LOCATIONS.map((loc) => (
-                    <button key={loc} onClick={() => { setVendorModalLocation(loc); setVendorPage(1) }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${vendorModalLocation === loc ? 'bg-violet-100 text-violet-700 border-violet-300' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-violet-50'}`}>
+                    <button key={loc} onClick={() => {
+                      setVendorModalLocations((prev) => prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc])
+                      setVendorPage(1)
+                    }}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${vendorModalLocations.includes(loc) ? 'bg-violet-100 text-violet-700 border-violet-300' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-violet-50'}`}>
                       {shortName(loc)}
                     </button>
                   ))}
@@ -625,7 +647,38 @@ export default function ExpenditurePage() {
                     <thead className="sticky top-0 bg-white z-10">
                       <tr className="border-b border-slate-100">
                         <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500 w-10">#</th>
-                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">Vendor</th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+                          <div className="relative flex items-center gap-1.5" ref={vendorAnalysisFilterRef}>
+                            <span>Vendor</span>
+                            <button onClick={() => setVendorAnalysisFilterOpen((v) => !v)}
+                              className={`p-0.5 rounded transition-colors ${vendorAnalysisFilter.length > 0 ? 'text-violet-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.591L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z" clipRule="evenodd"/></svg>
+                            </button>
+                            {vendorAnalysisFilter.length > 0 && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">{vendorAnalysisFilter.length}</span>
+                            )}
+                            {vendorAnalysisFilterOpen && (
+                              <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden">
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Filter by vendor</span>
+                                  {vendorAnalysisFilter.length > 0 && (
+                                    <button onClick={() => { setVendorAnalysisFilter([]); setVendorPage(1) }} className="text-[10px] text-violet-600 hover:text-violet-500 font-semibold">Clear</button>
+                                  )}
+                                </div>
+                                <div className="max-h-52 overflow-y-auto py-1">
+                                  {vendorTableData.rows.map((r) => (
+                                    <label key={r.vendor} className="flex items-center gap-2.5 px-3 py-2 hover:bg-violet-50 cursor-pointer">
+                                      <input type="checkbox" checked={vendorAnalysisFilter.includes(r.vendor)}
+                                        onChange={() => { setVendorAnalysisFilter((prev) => prev.includes(r.vendor) ? prev.filter((x) => x !== r.vendor) : [...prev, r.vendor]); setVendorPage(1) }}
+                                        className="w-3.5 h-3.5 rounded accent-violet-600" />
+                                      <span className="text-xs text-slate-700 truncate">{r.vendor}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </th>
                         <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-500">Total Spent</th>
                         <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-500">Entries</th>
                         <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-500">Avg / Month</th>
@@ -633,7 +686,7 @@ export default function ExpenditurePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {vendorTableData.rows.slice((vendorPage - 1) * VENDOR_PAGE_SIZE, vendorPage * VENDOR_PAGE_SIZE).map((row, i) => {
+                      {(vendorAnalysisFilter.length > 0 ? vendorTableData.rows.filter((r) => vendorAnalysisFilter.includes(r.vendor)) : vendorTableData.rows).slice((vendorPage - 1) * VENDOR_PAGE_SIZE, vendorPage * VENDOR_PAGE_SIZE).map((row, i) => {
                         const globalIdx = (vendorPage - 1) * VENDOR_PAGE_SIZE + i
                         const pct = vendorTableData.grandTotal > 0 ? (row.total / vendorTableData.grandTotal) * 100 : 0
                         const color = VENDOR_COLORS[globalIdx % VENDOR_COLORS.length]

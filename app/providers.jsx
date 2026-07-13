@@ -37,37 +37,35 @@ export default function Providers({ children }) {
   useEffect(() => {
     let mounted = true
 
-    // Explicitly fetch the current session — onAuthStateChange alone
-    // can miss the INITIAL_SESSION event on first dev-server load
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return
       if (!session) {
-        setProfile(null)
+        if (mounted) setProfile(null)
         setReady(true)
-        if (pathname !== '/login') router.replace('/login')
+        if (mounted && pathname !== '/login') router.replace('/login')
         return
       }
       const p = await fetchProfile(session.user.id)
-      if (!mounted) return
-      setProfile(p)
+      if (mounted) setProfile(p)
       setReady(true)
-      if (!isAllowed(p, pathname)) router.replace('/')
+      if (mounted && !isAllowed(p, pathname)) router.replace('/')
+    }).catch(() => {
+      // network error or unexpected throw — always unblock the spinner
+      setReady(true)
+      if (mounted && pathname !== '/login') router.replace('/login')
     })
 
-    // Handle future sign-in / sign-out events (skip INITIAL_SESSION,
-    // already handled by getSession above)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (_event === 'INITIAL_SESSION') return
       if (!session) {
-        setProfile(null)
-        setReady(true)
-        if (pathname !== '/login') router.replace('/login')
+        if (mounted) setProfile(null)
+        if (mounted) setReady(true)
+        if (mounted && pathname !== '/login') router.replace('/login')
         return
       }
       const p = await fetchProfile(session.user.id)
-      setProfile(p)
-      setReady(true)
-      if (!isAllowed(p, pathname)) router.replace('/')
+      if (mounted) setProfile(p)
+      if (mounted) setReady(true)
+      if (mounted && !isAllowed(p, pathname)) router.replace('/')
     })
 
     return () => {

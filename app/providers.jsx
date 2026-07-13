@@ -37,19 +37,34 @@ export default function Providers({ children }) {
   useEffect(() => {
     let mounted = true
 
+    // Safety net: getSession() can hang forever if a token refresh HTTP call stalls.
+    // After 10s with no response, bail out and send the user to login.
+    const safetyTimer = setTimeout(() => {
+      setReady(true)
+      if (mounted && pathname !== '/login') router.replace('/login')
+    }, 10000)
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
+        clearTimeout(safetyTimer)
         if (mounted) setProfile(null)
         setReady(true)
         if (mounted && pathname !== '/login') router.replace('/login')
         return
       }
-      const p = await fetchProfile(session.user.id)
-      if (mounted) setProfile(p)
-      setReady(true)
-      if (mounted && !isAllowed(p, pathname)) router.replace('/')
+      try {
+        const p = await fetchProfile(session.user.id)
+        clearTimeout(safetyTimer)
+        if (mounted) setProfile(p)
+        setReady(true)
+        if (mounted && !isAllowed(p, pathname)) router.replace('/')
+      } catch {
+        clearTimeout(safetyTimer)
+        setReady(true)
+        if (mounted && pathname !== '/login') router.replace('/login')
+      }
     }).catch(() => {
-      // network error or unexpected throw — always unblock the spinner
+      clearTimeout(safetyTimer)
       setReady(true)
       if (mounted && pathname !== '/login') router.replace('/login')
     })
@@ -70,6 +85,7 @@ export default function Providers({ children }) {
 
     return () => {
       mounted = false
+      clearTimeout(safetyTimer)
       subscription.unsubscribe()
     }
   }, [])

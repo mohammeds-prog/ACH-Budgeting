@@ -36,15 +36,25 @@ export default function Providers({ children }) {
 
   useEffect(() => {
     let mounted = true
+    let timedOut = false
 
-    // Safety net: getSession() can hang forever if a token refresh HTTP call stalls.
-    // After 10s with no response, bail out and send the user to login.
+    // Safety net: getSession() hangs when a stale token triggers a network refresh that
+    // stalls. router.replace() is client-side — it doesn't kill the pending request or
+    // release the Web Lock it holds, so signInWithPassword() would also hang.
+    // window.location.href does a full page navigation: kills all pending JS, releases
+    // the lock, and starts the login page completely clean.
     const safetyTimer = setTimeout(() => {
-      setReady(true)
-      if (mounted && pathname !== '/login') router.replace('/login')
-    }, 10000)
+      timedOut = true
+      try {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+          .forEach(k => localStorage.removeItem(k))
+      } catch {}
+      if (pathname !== '/login') window.location.href = '/login'
+    }, 5000)
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (timedOut) return
       if (!session) {
         clearTimeout(safetyTimer)
         if (mounted) setProfile(null)
@@ -54,16 +64,19 @@ export default function Providers({ children }) {
       }
       try {
         const p = await fetchProfile(session.user.id)
+        if (timedOut) return
         clearTimeout(safetyTimer)
         if (mounted) setProfile(p)
         setReady(true)
         if (mounted && !isAllowed(p, pathname)) router.replace('/')
       } catch {
+        if (timedOut) return
         clearTimeout(safetyTimer)
         setReady(true)
         if (mounted && pathname !== '/login') router.replace('/login')
       }
     }).catch(() => {
+      if (timedOut) return
       clearTimeout(safetyTimer)
       setReady(true)
       if (mounted && pathname !== '/login') router.replace('/login')

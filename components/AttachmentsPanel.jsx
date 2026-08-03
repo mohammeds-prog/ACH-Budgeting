@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getAttachments, uploadAttachment, deleteAttachment, getAttachmentSignedUrl } from '@/lib/storage'
+import { getAttachments, uploadAttachment, deleteAttachment, getAttachmentDownloadUrl } from '@/lib/storage'
+import AttachmentViewer from './AttachmentViewer'
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png'
 const MAX_MB  = 10
@@ -43,7 +44,8 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
   const [files, setFiles]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [openingId, setOpeningId] = useState(null)
+  const [viewerIndex, setViewerIndex] = useState(null) // index into files, or null
+  const [downloadingId, setDownloadingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null) // the attachment object pending delete
   const [error, setError]         = useState('')
@@ -85,15 +87,21 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
     }
   }
 
-  async function handleOpen(att) {
-    setOpeningId(att.id)
+  async function handleDownload(att) {
+    setDownloadingId(att.id)
+    setError('')
     try {
-      const url = await getAttachmentSignedUrl(att.file_path)
-      window.open(url, '_blank', 'noopener')
+      const url = await getAttachmentDownloadUrl(att.file_path, att.file_name)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = att.file_name || ''
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
     } catch {
-      setError('Could not open file. Try again.')
+      setError('Download failed. Try again.')
     } finally {
-      setOpeningId(null)
+      setDownloadingId(null)
     }
   }
 
@@ -164,10 +172,12 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
             </div>
           ) : (
             <div className="p-3 space-y-1.5">
-              {files.map((f) => (
+              {files.map((f, i) => (
                 <div
                   key={f.id}
-                  className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-violet-200 hover:bg-violet-50/30 transition-all group/file"
+                  onClick={() => setViewerIndex(i)}
+                  title="Click to preview"
+                  className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:border-violet-200 hover:bg-violet-50/30 transition-all group/file cursor-pointer"
                 >
                   <FileTypeIcon mime={f.mime_type} />
                   <div className="flex-1 min-w-0">
@@ -178,21 +188,31 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
                   </div>
                   <div className="flex gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0">
                     <button
-                      onClick={() => handleOpen(f)}
-                      disabled={openingId === f.id}
-                      title="Open"
+                      onClick={(e) => { e.stopPropagation(); setViewerIndex(i) }}
+                      title="Preview"
+                      className="p-1.5 rounded-lg hover:bg-violet-100 text-slate-400 hover:text-violet-600 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDownload(f) }}
+                      disabled={downloadingId === f.id}
+                      title="Download"
                       className="p-1.5 rounded-lg hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 disabled:opacity-40 transition-colors"
                     >
-                      {openingId === f.id ? (
+                      {downloadingId === f.id ? (
                         <div className="w-3.5 h-3.5 border-2 border-indigo-400/40 border-t-indigo-500 rounded-full animate-spin" />
                       ) : (
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/>
                         </svg>
                       )}
                     </button>
                     <button
-                      onClick={() => setConfirmDelete(f)}
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(f) }}
                       disabled={deletingId === f.id}
                       title="Delete"
                       className="p-1.5 rounded-lg hover:bg-red-100 text-slate-400 hover:text-red-500 disabled:opacity-40 transition-colors"
@@ -292,6 +312,14 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
           </div>
         </div>
       </div>
+
+      {viewerIndex !== null && files[viewerIndex] && (
+        <AttachmentViewer
+          files={files}
+          startIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
+      )}
     </div>
   )
 }

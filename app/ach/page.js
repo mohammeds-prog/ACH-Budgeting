@@ -27,7 +27,7 @@ function shortLoc(loc) {
   return loc
 }
 
-const EMPTY_ROW = { postingDate: '', details: '', description: '', insuranceName: '', amount: '', fromLocation: '', location: '', match: '', status: 'Pending', initials: '', splits: null }
+const EMPTY_ROW = { postingDate: '', details: '', bankAccount: '', description: '', insuranceName: '', amount: '', fromLocation: '', location: '', match: '', status: 'Pending', initials: '', splits: null }
 
 // Parses combined "Posted | le" style initials field into { status, initials }
 function parseInitialsField(val, statuses) {

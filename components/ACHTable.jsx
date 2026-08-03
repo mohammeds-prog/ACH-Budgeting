@@ -6,6 +6,7 @@ import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 const COLS = [
   { key: 'postingDate',   label: 'Date' },
   { key: 'details',       label: 'Details' },
+  { key: 'bankAccount',   label: 'Bank Account' },
   { key: 'description',   label: 'Description' },
   { key: 'insuranceName', label: 'Insurance Name' },
   { key: 'amount',        label: 'Amount' },
@@ -101,15 +102,20 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
       {selectionMode && <td className="px-3 py-2" />}
       <td className="px-2 py-2">
         {canEditFull
-          ? <input type="date" value={row.postingDate || ''} onChange={(e) => onChange('postingDate', e.target.value)} className={iCell} style={{ minWidth: 120 }} />
+          ? <input type="date" value={row.postingDate || ''} onChange={(e) => onChange('postingDate', e.target.value)} className={iCell} />
           : <span className="text-xs text-slate-700 px-1 tabular-nums">{formatDate(row.postingDate) || '—'}</span>}
       </td>
       <td className="px-2 py-2">
         {canEditFull
-          ? <CustomSelect value={row.details || ''} onChange={(v) => onChange('details', v)} options={DETAIL_OPTIONS} style={{ minWidth: 80 }} />
+          ? <CustomSelect value={row.details || ''} onChange={(v) => onChange('details', v)} options={DETAIL_OPTIONS} />
           : (row.details
               ? <span className={`badge text-[10px] ${row.details === 'CREDIT' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>{row.details}</span>
               : <span className="text-slate-300">—</span>)}
+      </td>
+      <td className="px-2 py-2">
+        {canEditFull
+          ? <input type="text" value={row.bankAccount || ''} onChange={(e) => onChange('bankAccount', e.target.value)} placeholder="Bank account…" className={iCell} />
+          : <span className="text-xs text-slate-700 px-1">{row.bankAccount || <span className="text-slate-300">—</span>}</span>}
       </td>
       <td className="px-2 py-2 max-w-[260px]">
         {canEditFull
@@ -119,23 +125,23 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
               placeholder="Description…"
               rows={2}
               className={`${iCell} resize-none overflow-y-auto`}
-              style={{ minWidth: 200, height: 48 }}
+              style={{ height: 48 }}
             />
           : <span className="text-slate-800 text-xs leading-relaxed line-clamp-2 block" title={row.description}>{row.description || <span className="text-slate-300">—</span>}</span>}
       </td>
       <td className="px-2 py-2">
         {canEditFull
-          ? <input type="text" value={row.insuranceName || ''} onChange={(e) => onChange('insuranceName', e.target.value)} placeholder="Insurance…" className={iCell} style={{ minWidth: 140 }} />
+          ? <input type="text" value={row.insuranceName || ''} onChange={(e) => onChange('insuranceName', e.target.value)} placeholder="Insurance…" className={iCell} />
           : <span className="text-xs text-slate-700 px-1">{row.insuranceName || <span className="text-slate-300">—</span>}</span>}
       </td>
       <td className="px-2 py-2">
         {canEditFull
-          ? <input type="number" step="0.01" value={row.amount || ''} onChange={(e) => onChange('amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={iCell} style={{ minWidth: 90 }} />
+          ? <input type="number" step="0.01" value={row.amount || ''} onChange={(e) => onChange('amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={iCell} />
           : <span className={`text-xs font-semibold tabular-nums px-1 ${Number(row.amount) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{row.amount ? formatAmount(row.amount) : '—'}</span>}
       </td>
       <td className="px-2 py-2">
         {canEditFull
-          ? <CustomSelect value={row.fromLocation || ''} onChange={(v) => onChange('fromLocation', v)} options={LOC_OPTIONS} style={{ minWidth: 110 }} />
+          ? <CustomSelect value={row.fromLocation || ''} onChange={(v) => onChange('fromLocation', v)} options={LOC_OPTIONS} />
           : <span className="text-xs text-slate-500 px-1">{shortLocation(row.fromLocation) || '—'}</span>}
       </td>
       <td className="px-2 py-2">
@@ -159,7 +165,7 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
               <span className="text-[10px] text-slate-400">Split</span>
             </button>
             {row.splits === null && (
-              <CustomSelect value={row.location || ''} onChange={(v) => onChange('location', v)} options={LOC_OPTIONS} style={{ minWidth: 110 }} />
+              <CustomSelect value={row.location || ''} onChange={(v) => onChange('location', v)} options={LOC_OPTIONS} className="flex-1" />
             )}
           </div>
           {row.splits !== null && (
@@ -204,15 +210,15 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
       </td>
       <td className="px-2 py-2">
         {isAllLocations && row.splits?.length > 0 ? (
-          <div className="text-[10px] text-amber-600 italic leading-tight" style={{ minWidth: 100 }}>
+          <div className="text-[10px] text-amber-600 italic leading-tight">
             Edit match per location
           </div>
         ) : (
-          <CustomSelect value={row.match || ''} onChange={(v) => onChange('match', v)} options={MATCH_OPTIONS} style={{ minWidth: 80 }} />
+          <CustomSelect value={row.match || ''} onChange={(v) => onChange('match', v)} options={MATCH_OPTIONS} />
         )}
       </td>
       <td className="px-2 py-2">
-        <CustomSelect value={row.status || ''} onChange={handleStatusChange} options={STATUS_OPTIONS(ACH_STATUSES)} style={{ minWidth: 110 }} />
+        <CustomSelect value={row.status || ''} onChange={handleStatusChange} options={STATUS_OPTIONS(ACH_STATUSES)} />
       </td>
       <td className="px-2 py-2">
         <input
@@ -222,11 +228,10 @@ function EditRow({ row, onChange, onSave, onCancel, saving, selectionMode, isAll
           placeholder={initialsRequired ? 'Required…' : 'Initials…'}
           maxLength={10}
           className={`${iCell} ${initialsRequired && !row.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`}
-          style={{ minWidth: 80 }}
         />
       </td>
       <td className="px-2 py-2 pr-4">
-        <AutoTextarea value={row.notes || ''} onChange={(e) => onChange('notes', e.target.value)} placeholder="Notes…" style={{ minWidth: 140, maxHeight: 72 }} />
+        <AutoTextarea value={row.notes || ''} onChange={(e) => onChange('notes', e.target.value)} placeholder="Notes…" style={{ maxHeight: 72 }} />
       </td>
       <td className="px-2 py-2 sticky right-0 z-10 bg-white">
         <div className="flex gap-1.5">
@@ -372,7 +377,7 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px] border-collapse text-sm">
+            <table className="w-full min-w-[1400px] border-collapse text-sm">
               <thead className="sticky top-0 z-20">
                 <tr className="border-b border-slate-200">
                   {selectionMode && (
@@ -491,13 +496,14 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                           {selectionMode && <td className="px-3 py-2" />}
                           <td className="px-4 py-3 whitespace-nowrap"><span className="text-slate-700 font-medium tabular-nums text-xs">{formatDate(entry.postingDate)}</span></td>
                           <td className="px-4 py-3">{entry.details ? <span className={`badge text-[10px] ${entry.details === 'CREDIT' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>{entry.details}</span> : <span className="text-slate-300">—</span>}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><span className="text-slate-700 text-xs">{entry.bankAccount || <span className="text-slate-300">—</span>}</span></td>
                           <td className="px-4 py-3 max-w-[260px]"><span className="text-slate-800 text-xs leading-relaxed line-clamp-3 block">{entry.description || <span className="text-slate-300">—</span>}</span></td>
                           <td className="px-4 py-3"><span className="text-slate-700 text-xs truncate block">{entry.insuranceName || <span className="text-slate-300">—</span>}</span></td>
                           <td className="px-4 py-3 whitespace-nowrap"><span className={`font-semibold tabular-nums ${Number(displayAmount) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatAmount(displayAmount)}</span></td>
                           <td className="px-4 py-3 whitespace-nowrap"><span className="badge text-[10px] bg-violet-100 text-violet-700 border border-violet-200">← {shortLocation(entry.fromLocation)}</span></td>
                           <td className="px-4 py-3 whitespace-nowrap"><span className="badge bg-slate-100 text-slate-700 border border-slate-200 text-[10px]">{shortLocation(currentLocation)}</span></td>
                           <td className="px-2 py-2">
-                            <CustomSelect value={splitEditRow.match || ''} onChange={(v) => setSplitEditRow((p) => ({ ...p, match: v }))} options={MATCH_OPTIONS} style={{ minWidth: 80 }} />
+                            <CustomSelect value={splitEditRow.match || ''} onChange={(v) => setSplitEditRow((p) => ({ ...p, match: v }))} options={MATCH_OPTIONS} />
                           </td>
                           <td className="px-2 py-2">
                             <CustomSelect
@@ -508,15 +514,14 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                                 return u
                               })}
                               options={STATUS_OPTIONS(ACH_STATUSES)}
-                              style={{ minWidth: 110 }}
                             />
                           </td>
                           <td className="px-2 py-2">
                             <input type="text" value={splitEditRow.initials || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, initials: e.target.value }))} placeholder={splitInitialsRequired ? 'Required…' : 'Initials…'} maxLength={10}
-                              className={`${iCell} ${splitInitialsRequired && !splitEditRow.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`} style={{ minWidth: 80 }} />
+                              className={`${iCell} ${splitInitialsRequired && !splitEditRow.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`} />
                           </td>
                           <td className="px-2 py-2">
-                            <AutoTextarea value={splitEditRow.notes || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes…" style={{ minWidth: 140, maxHeight: 72 }} />
+                            <AutoTextarea value={splitEditRow.notes || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes…" style={{ maxHeight: 72 }} />
                           </td>
                           <td className="px-2 py-2 sticky right-0 z-10 bg-white">
                             <div className="flex gap-1.5">
@@ -557,6 +562,7 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                             <span className={`badge text-[10px] ${entry.details === 'CREDIT' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>{entry.details}</span>
                           ) : <span className="text-slate-300">—</span>}
                         </td>
+                        <td className="px-4 py-3 whitespace-nowrap"><span className="text-slate-700 text-xs">{entry.bankAccount || <span className="text-slate-300">—</span>}</span></td>
                         <td className="px-4 py-3 max-w-[260px]">
                           {(() => {
                             const desc = entry.description
@@ -722,7 +728,7 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                           return (
                             <tr key={`${entry.id}-s${i}`} onKeyDown={(e) => { if (e.key === 'Escape') cancelSplitEdit() }} className="border-b border-indigo-200 bg-indigo-50/80">
                               {selectionMode && <td className="px-3 py-2" />}
-                              <td colSpan={4} className="px-4 py-2 pl-8">
+                              <td colSpan={5} className="px-4 py-2 pl-8">
                                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                                   <span className="text-slate-400">└</span>
                                   <span>split {i + 1} of {entry.splits.length}</span>
@@ -736,7 +742,7 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                                 {split.location ? <span className="badge bg-indigo-50 text-indigo-600 border border-indigo-200 text-[10px]">{shortLocation(split.location)}</span> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-2 py-2">
-                                <CustomSelect value={splitEditRow.match || ''} onChange={(v) => setSplitEditRow((p) => ({ ...p, match: v }))} options={MATCH_OPTIONS} style={{ minWidth: 80 }} />
+                                <CustomSelect value={splitEditRow.match || ''} onChange={(v) => setSplitEditRow((p) => ({ ...p, match: v }))} options={MATCH_OPTIONS} />
                               </td>
                               <td className="px-2 py-2">
                                 <CustomSelect
@@ -747,7 +753,6 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                                     return u
                                   })}
                                   options={STATUS_OPTIONS(ACH_STATUSES)}
-                                  style={{ minWidth: 110 }}
                                 />
                               </td>
                               <td className="px-2 py-2">
@@ -758,11 +763,10 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
                                   placeholder={splitInitialsRequired ? 'Required…' : 'Initials…'}
                                   maxLength={10}
                                   className={`${iCell} ${splitInitialsRequired && !splitEditRow.initials?.trim() ? 'border-amber-500/60 ring-1 ring-amber-500/20 placeholder:text-amber-500/50' : ''}`}
-                                  style={{ minWidth: 80 }}
                                 />
                               </td>
                               <td className="px-2 py-2">
-                                <AutoTextarea value={splitEditRow.notes || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes…" style={{ minWidth: 140, maxHeight: 72 }} />
+                                <AutoTextarea value={splitEditRow.notes || ''} onChange={(e) => setSplitEditRow((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes…" style={{ maxHeight: 72 }} />
                               </td>
                               <td className="px-2 py-2 sticky right-0 z-10 bg-white">
                                 <div className="flex gap-1.5">
@@ -778,8 +782,8 @@ export default function ACHTable({ entries, sortConfig, onSort, onStartEdit, onD
 
                         return (
                           <tr key={`${entry.id}-s${i}`} className="border-b border-slate-200 bg-indigo-50/30 group/split-row">
-                            {selectionMode && <td />}
-                            <td colSpan={4} className="px-4 py-2 pl-8">
+                            {selectionMode && <td className="px-3 py-2" />}
+                            <td colSpan={5} className="px-4 py-2 pl-8">
                               <div className="flex items-center gap-1.5 text-xs text-slate-500">
                                 <span className="text-slate-400">└</span>
                                 <span className="text-slate-500">split {i + 1} of {entry.splits.length}</span>

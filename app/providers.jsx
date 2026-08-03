@@ -51,7 +51,7 @@ export default function Providers({ children }) {
           .forEach(k => localStorage.removeItem(k))
       } catch {}
       if (pathname !== '/login') window.location.href = '/login'
-    }, 5000)
+    }, 8000)
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (timedOut) return

@@ -27,7 +27,13 @@ function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) 
     if (disabled) return
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setDropPos({ top: r.bottom + 4, left: r.left, minWidth: r.width })
+      const estimatedHeight = options.length * 36 + 8
+      const spaceBelow = window.innerHeight - r.bottom - 4
+      if (spaceBelow < estimatedHeight) {
+        setDropPos({ bottom: window.innerHeight - r.top + 4, left: r.left, minWidth: r.width })
+      } else {
+        setDropPos({ top: r.bottom + 4, left: r.left, minWidth: r.width })
+      }
     }
     setOpen((v) => !v)
   }
@@ -51,7 +57,7 @@ function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) 
         )}
       </button>
       {open && dropPos && (
-        <div style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.minWidth, zIndex: 9999 }}
+        <div style={{ position: 'fixed', ...dropPos, zIndex: 9999 }}
           className="bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/80 py-1">
           {options.map((r) => (
             <button

@@ -11,6 +11,7 @@ import AttachmentsPanel from '@/components/AttachmentsPanel'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import ImportModal, { parseFlexDate, fuzzyLocation, parseAmount } from '@/components/ImportModal'
 import { logActivity } from '@/lib/activityLog'
+import { exportAchToExcel } from '@/lib/exportAch'
 import { extractInsuranceName } from '@/lib/achParser'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
@@ -200,6 +201,31 @@ export default function ACHPage() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const tcTotalPages = Math.max(1, Math.ceil(tcFiltered.length / PAGE_SIZE))
   const tcPaged = tcFiltered.slice((tcPage - 1) * PAGE_SIZE, tcPage * PAGE_SIZE)
+
+  function handleExport() {
+    const rows = showTCView ? tcFiltered : filtered
+    if (rows.length === 0) return
+    const isSpecificLocation = selectedLocation !== ALL && selectedLocation !== CUSTOM
+    const locationLabel = selectedLocation === ALL
+      ? 'All Locations'
+      : selectedLocation === CUSTOM
+        ? 'Inter Office Transfers'
+        : shortLoc(selectedLocation)
+    exportAchToExcel({
+      entries: rows,
+      locationLabel,
+      isSpecificLocation,
+      currentLocation: selectedLocation,
+      filters,
+      showTCView,
+    })
+    logActivity({
+      action: 'export',
+      module: 'ACH',
+      description: `Exported ${rows.length} ACH ${rows.length === 1 ? 'entry' : 'entries'} — ${locationLabel}`,
+      metadata: { count: rows.length, location: locationLabel, view: showTCView ? 'transferComplete' : 'active', filters },
+    })
+  }
 
   // Stats respond to all filters except match
   const statsEntries = useMemo(() => {
@@ -471,6 +497,15 @@ export default function ACHPage() {
                     Import
                   </button>
                 )}
+                <button
+                  onClick={handleExport}
+                  disabled={(showTCView ? tcFiltered : filtered).length === 0}
+                  title={(showTCView ? tcFiltered : filtered).length === 0 ? 'Nothing to export' : 'Export the entries currently in view'}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 7.5 12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                  Export
+                </button>
                 {can(profile, 'ach_add') && (
                   <button onClick={() => setModal(true)} disabled={editingId !== null} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -820,6 +855,8 @@ export default function ACHPage() {
               aliases: ['details', 'type', 'transactiontype', 'txntype', 'entrytype', 'kind', 'category', 'dc', 'direction', 'creditdebit', 'debitcredit'],
               validate: (v) => !v || ['CREDIT', 'DEBIT'].includes(v.toUpperCase()) ? null : 'details must be CREDIT or DEBIT',
               transform: (v) => v ? v.toUpperCase() : null },
+            { key: 'bankAccount', label: 'bankAccount', required: false, example: 'Chase ****4821',
+              aliases: ['bankaccount', 'bank_account', 'bank account', 'bank', 'account', 'accountname', 'account_name', 'accountnumber', 'account_number', 'acct', 'acctno', 'acctnumber', 'bankname', 'bank_name', 'depositaccount', 'accountno'] },
             { key: 'description', label: 'description', required: false, example: 'DELTA DENTAL PMT',
               aliases: ['description', 'desc', 'memo', 'narrative', 'particulars', 'note', 'notes', 'reference', 'ref', 'remarks', 'comment', 'comments', 'transactiondescription', 'paymentdescription', 'detail'] },
             { key: 'insuranceName', label: 'insuranceName', required: false, example: 'Delta Dental',
@@ -839,7 +876,7 @@ export default function ACHPage() {
               validate: (v, locs) => !v || fuzzyLocation(v, locs) ? null : `Location not recognized: "${v}"`,
               transform: (v, locs) => v ? (fuzzyLocation(v, locs) || v) : null },
             { key: 'fromLocation', label: 'fromLocation', required: false, example: 'Naperville',
-              aliases: ['fromlocation', 'from_location', 'receivedby', 'received_by', 'receivedat', 'receivedlocation', 'fromloc', 'bankaccount', 'bank'],
+              aliases: ['fromlocation', 'from_location', 'receivedby', 'received_by', 'receivedat', 'receivedlocation', 'fromloc'],
               validate: (v, locs) => !v || fuzzyLocation(v, locs) ? null : `Location not recognized: "${v}"`,
               transform: (v, locs) => v ? (fuzzyLocation(v, locs) || v) : null,
               defaultValue: selectedLocation !== ALL && selectedLocation !== CUSTOM ? selectedLocation : undefined },

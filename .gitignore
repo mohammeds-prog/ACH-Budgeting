@@ -1,3 +1,10 @@
 .next/
 node_modules/
-.env.local
+
+# Never commit secrets. .env.local holds SUPABASE_SERVICE_ROLE_KEY, which
+# bypasses every RLS policy in supabase/policies.sql. The previous rule
+# matched only the literal name ".env.local", so a .env.production added
+# later would have been committed.
+.env
+.env.*
+!.env.example

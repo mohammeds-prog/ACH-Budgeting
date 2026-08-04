@@ -29,6 +29,11 @@ function deriveInitials(profile) {
   return email.slice(0, 2).toUpperCase()
 }
 
+// Money as integer cents, so split totals compare exactly.
+function toCents(v) {
+  return Math.round((Number(v) || 0) * 100)
+}
+
 export default function EntryModal({ entry, onSave, onClose }) {
   const profile = useProfile()
   const [form, setForm] = useState(EMPTY)
@@ -59,29 +64,68 @@ export default function EntryModal({ entry, onSave, onClose }) {
   function set(key, value) {
     setForm((p) => ({ ...p, [key]: value }))
     if (errors[key]) setErrors((p) => ({ ...p, [key]: '' }))
+    // The split total is checked against the payment amount, so editing the
+    // amount can resolve a split error too.
+    if (key === 'amount') setErrors((p) => (p.splits ? { ...p, splits: '' } : p))
   }
 
   function toggleSplit(val) {
     setIsSplit(val)
     if (!val) setSplitRows([{ ...EMPTY_SPLIT }])
+    setErrors((p) => (p.splits ? { ...p, splits: '' } : p))
+  }
+
+  // Any change to the allocation clears the split error so the message doesn't
+  // linger after it's been fixed.
+  function clearSplitError() {
+    setErrors((p) => (p.splits ? { ...p, splits: '' } : p))
   }
 
   function setSplitRow(i, field, value) {
     setSplitRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
+    clearSplitError()
   }
 
   function addSplitRow() {
     setSplitRows((prev) => [...prev, { ...EMPTY_SPLIT }])
+    clearSplitError()
   }
 
   function removeSplitRow(i) {
     setSplitRows((prev) => prev.filter((_, idx) => idx !== i))
+    clearSplitError()
   }
 
   function validate() {
     const e = {}
     if (!form.postingDate) e.postingDate = 'Required'
     if (form.amount === '' || form.amount === null) e.amount = 'Required'
+
+    if (isSplit) {
+      const filled = splitRows.filter((r) => r.location && r.amount !== '')
+      // Compare in whole cents. Comparing floats lets a 1c error through:
+      // 253.20 - (100 + 153.19) is 0.00999999999999 in binary floating point,
+      // which slips under a 0.01 tolerance.
+      const totalC = filled.reduce((s, r) => s + toCents(r.amount), 0)
+      const targetC = toCents(form.amount)
+      const total  = totalC / 100
+      const target = targetC / 100
+      const diff   = (targetC - totalC) / 100
+      const locs   = filled.map((r) => r.location)
+
+      // 0 filled rows is allowed — that's the "Split · pending" state, meaning
+      // "this needs splitting but we haven't worked out the allocation yet".
+      if (filled.length === 1) {
+        e.splits = 'A split needs two or more locations. For a single location, turn Split off and set Belongs To instead.'
+      } else if (new Set(locs).size !== locs.length) {
+        e.splits = 'The same location is listed more than once. Combine those rows.'
+      } else if (filled.length > 1 && totalC !== targetC) {
+        e.splits = diff > 0
+          ? `Split amounts total $${total.toFixed(2)} but the payment is $${target.toFixed(2)} — $${diff.toFixed(2)} is unallocated.`
+          : `Split amounts total $${total.toFixed(2)}, which is $${Math.abs(diff).toFixed(2)} more than the $${target.toFixed(2)} payment.`
+      }
+    }
+
     return e
   }
 
@@ -95,10 +139,16 @@ export default function EntryModal({ entry, onSave, onClose }) {
     onSave({ ...form, amount: Number(form.amount), id: entry?.id, location: isSplit ? '' : form.location, splits })
   }
 
-  const splitTotal  = isSplit ? splitRows.reduce((s, r) => s + (Number(r.amount) || 0), 0) : 0
-  const entryAmount = Number(form.amount) || 0
-  const splitDiff   = entryAmount - splitTotal
-  const splitOk     = Math.abs(splitDiff) < 0.01
+  // Only rows with BOTH a location and an amount count — a half-filled row
+  // shouldn't make the running total look wrong while it's being typed.
+  const filledSplits     = isSplit ? splitRows.filter((r) => r.location && r.amount !== '') : []
+  const filledSplitCount = filledSplits.length
+  const splitTotalC = filledSplits.reduce((s, r) => s + toCents(r.amount), 0)
+  const entryAmountC = toCents(form.amount)
+  const splitTotal  = splitTotalC / 100
+  const entryAmount = entryAmountC / 100
+  const splitDiff   = (entryAmountC - splitTotalC) / 100
+  const splitOk     = filledSplitCount > 1 && splitTotalC === entryAmountC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -209,15 +259,22 @@ export default function EntryModal({ entry, onSave, onClose }) {
                     </svg>
                     Add location
                   </button>
-                  {entryAmount > 0 && (
-                    <span className={`text-xs tabular-nums ${splitOk ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {entryAmount > 0 && filledSplitCount > 0 && (
+                    <span className={`text-xs font-medium tabular-nums ${splitOk ? 'text-emerald-600' : 'text-red-600'}`}>
                       {splitOk
-                        ? `✓ $${splitTotal.toFixed(2)} allocated`
-                        : `$${splitTotal.toFixed(2)} / $${entryAmount.toFixed(2)} — ${splitDiff > 0 ? `$${splitDiff.toFixed(2)} unassigned` : `$${Math.abs(splitDiff).toFixed(2)} over`}`}
+                        ? `✓ $${splitTotal.toFixed(2)} of $${entryAmount.toFixed(2)} allocated`
+                        : `⚠ $${splitTotal.toFixed(2)} of $${entryAmount.toFixed(2)} — ${splitDiff > 0 ? `$${splitDiff.toFixed(2)} short` : `$${Math.abs(splitDiff).toFixed(2)} over`}`}
                     </span>
                   )}
                 </div>
-                {errors.splits && <p className="text-[11px] text-red-400 font-medium mt-1">{errors.splits}</p>}
+                {filledSplitCount === 1 && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-1">
+                    One location isn't a split. Add another, or turn Split off and set a single Belongs To.
+                  </p>
+                )}
+                {errors.splits && (
+                  <p className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 mt-1 font-medium">{errors.splits}</p>
+                )}
               </div>
             )}
           </div>

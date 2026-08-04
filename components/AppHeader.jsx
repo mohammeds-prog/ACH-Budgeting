@@ -7,6 +7,7 @@ import { useProfile } from '@/lib/profileContext'
 
 const PAGE_LABELS = {
   '/ach': 'ACH Documents',
+  '/zero-payments': 'Zero Payments',
   '/expenditure': 'Supply Budget',
   '/admin': 'User Management',
   '/admin/activity-log': 'Activity Log',

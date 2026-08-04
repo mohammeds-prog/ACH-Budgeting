@@ -22,9 +22,11 @@ function isAllowed(profile, pathname) {
     if (pathname === '/admin') return can(profile, 'admin_panel')
     return true
   }
-  if (pathname === '/ach'         && !profile?.can_view_ach)       return false
-  if (pathname === '/expenditure' && !profile?.can_view_budgeting) return false
-  if (pathname === '/admin'       && !can(profile, 'admin_panel')) return false
+  if (pathname === '/ach'            && !profile?.can_view_ach)       return false
+  if (pathname === '/zero-payments'  && !profile?.can_view_ach)       return false
+  if (pathname === '/expenditure'    && !profile?.can_view_budgeting) return false
+  // startsWith, not equality — '/admin/activity-log' must be gated too
+  if (pathname.startsWith('/admin')  && !can(profile, 'admin_panel')) return false
   return true
 }
 

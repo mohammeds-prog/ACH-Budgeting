@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import AppHeader from '@/components/AppHeader'
 import FilterBar from '@/components/FilterBar'
 import ACHTable from '@/components/ACHTable'
@@ -27,8 +28,6 @@ function shortLoc(loc) {
   if (loc === 'Valley View Dental Montgomery') return 'Montgomery'
   return loc
 }
-
-const EMPTY_ROW = { postingDate: '', details: '', bankAccount: '', description: '', insuranceName: '', amount: '', fromLocation: '', location: '', match: '', status: 'Pending', initials: '', splits: null }
 
 // Parses combined "Posted | le" style initials field into { status, initials }
 function parseInitialsField(val, statuses) {
@@ -76,9 +75,6 @@ export default function ACHPage() {
   const [importModal, setImportModal] = useState(false)
   const [attachmentsEntry, setAttachmentsEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
-  const [editingId, setEditingId] = useState(null)
-  const [editRow, setEditRow] = useState(EMPTY_ROW)
-  const [saving, setSaving] = useState(false)
   const [page, setPage] = useState(1)
 
   useEffect(() => { setPage(1); setTcPage(1) }, [filters, sortConfig, selectedLocation])
@@ -334,20 +330,27 @@ export default function ACHPage() {
     }
   }
 
-  function startEdit(entry) {
-    setEditingId(entry.id)
-    let matchForEdit = entry.match
-    if (selectedLocation !== ALL && entry.splits?.length > 0) {
-      const split = entry.splits.find((s) => s.location === selectedLocation)
-      matchForEdit = split?.match || ''
+  // Persist a partial edit made inline in a table cell. The whole entry is
+  // written back (storage.saveEntry sends every column), so we merge the patch
+  // onto the current row first. On a location tab, keep the parent `match`
+  // consistent with its splits the way the old row editor did.
+  async function handleSaveFields(entry, patch) {
+    const next = { ...entry, ...patch }
+    if (next.splits?.length > 0) {
+      const all = next.splits.map((s) => s.match || 'No')
+      if (all.every((m) => m === 'Yes')) next.match = 'Yes'
+      else if (all.some((m) => m === 'Yes' || m === 'Partial')) next.match = 'Partial'
+      else next.match = 'No'
     }
-    setEditRow({ ...entry, amount: String(entry.amount ?? ''), match: matchForEdit })
+    const saved = await saveEntry(next)
+    setEntries((prev) => prev.map((e) => (e.id === saved.id ? saved : e)))
+    logActivity({
+      action: 'update', module: 'ACH',
+      description: `Edited ${Object.keys(patch).join(', ')} — ${entry.description?.slice(0, 40) || 'entry'}`,
+      metadata: { id: entry.id, patch },
+    })
   }
 
-  function cancelEdit() {
-    setEditingId(null)
-    setEditRow(EMPTY_ROW)
-  }
 
   function toggleReceivedBy(full) {
     setFilters((prev) => {
@@ -361,41 +364,6 @@ export default function ACHPage() {
       const cur = prev.belongsTo || []
       return { ...prev, belongsTo: cur.includes(full) ? cur.filter((x) => x !== full) : [...cur, full] }
     })
-  }
-
-  function changeEditRow(key, val) {
-    setEditRow((prev) => ({ ...prev, [key]: val }))
-  }
-
-  async function saveEdit() {
-    if (!editRow.postingDate || editRow.amount === '') return
-    setSaving(true)
-    try {
-      let splits = editRow.splits !== null
-        ? editRow.splits.filter((r) => r.location && r.amount !== '').map((r) => ({ location: r.location, amount: Number(r.amount), match: r.match || null }))
-        : null
-      // On a specific location tab, save editRow.match back into just that split
-      if (selectedLocation !== ALL && splits?.length > 0) {
-        splits = splits.map((s) => s.location === selectedLocation ? { ...s, match: editRow.match || null } : s)
-      }
-      // Derive overall entry match from all splits
-      let entryMatch = editRow.match
-      if (splits?.length > 0) {
-        const all = splits.map((s) => s.match || 'No')
-        if (all.every((m) => m === 'Yes')) entryMatch = 'Yes'
-        else if (all.some((m) => m === 'Yes' || m === 'Partial')) entryMatch = 'Partial'
-        else entryMatch = 'No'
-      }
-      const saved = await saveEntry({ ...editRow, amount: Number(editRow.amount), splits, match: entryMatch, id: editingId })
-      setEntries((prev) => prev.map((e) => e.id === saved.id ? saved : e))
-      setEditingId(null)
-      setEditRow(EMPTY_ROW)
-      logActivity({ action: 'update', module: 'ACH', description: `Edited ACH entry — $${Number(editRow.amount).toLocaleString()}, ${editRow.description || 'No description'}`, metadata: { id: editingId, amount: editRow.amount } })
-    } catch {
-      alert('Failed to save. Check your connection.')
-    } finally {
-      setSaving(false)
-    }
   }
 
   async function handleModalSave(formData) {
@@ -506,8 +474,17 @@ export default function ACHPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 7.5 12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
                   Export
                 </button>
+                <Link
+                  href="/zero-payments"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"/><path strokeLinecap="round" d="M8 12h8"/>
+                  </svg>
+                  Zero Payments
+                </Link>
                 {can(profile, 'ach_add') && (
-                  <button onClick={() => setModal(true)} disabled={editingId !== null} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button onClick={() => setModal(true)} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                     </svg>
@@ -556,13 +533,13 @@ export default function ACHPage() {
         </div>
 
         {/* Tabs + filters — constrained width */}
-        <div className="max-w-screen-xl mx-auto px-6 pt-4 space-y-4">
+        <div className="max-w-[1600px] mx-auto px-6 pt-4 space-y-4">
           {/* Location tabs */}
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="flex overflow-x-auto divide-x divide-white/40">
               {/* Custom tab */}
               <button
-                onClick={() => { setSelectedLocation(CUSTOM); cancelEdit() }}
+                onClick={() => setSelectedLocation(CUSTOM)}
                 className={`flex-1 min-w-[100px] px-4 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 flex items-center justify-center gap-1.5 ${
                   selectedLocation === CUSTOM
                     ? 'border-amber-500 bg-amber-50 text-amber-700'
@@ -583,7 +560,7 @@ export default function ACHPage() {
               {[{ key: ALL, label: 'All Locations' }, ...LOCATIONS.map((l) => ({ key: l, label: shortLoc(l) }))].map(({ key, label }) => (
                 <button
                   key={key}
-                  onClick={() => { setSelectedLocation(key); cancelEdit() }}
+                  onClick={() => setSelectedLocation(key)}
                   className={`flex-1 min-w-[100px] px-4 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
                     selectedLocation === key
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
@@ -711,16 +688,11 @@ export default function ACHPage() {
                 entries={paged}
                 sortConfig={sortConfig}
                 onSort={handleSort}
-                onStartEdit={startEdit}
+                onOpenFull={setModalEntry}
+                onSaveFields={handleSaveFields}
                 onDelete={handleDelete}
                 onDeleteMany={handleDeleteMany}
                 onEditMany={handleEditMany}
-                editingId={editingId}
-                editRow={editRow}
-                onEditRowChange={changeEditRow}
-                onSaveEdit={saveEdit}
-                onCancelEdit={cancelEdit}
-                saving={saving}
                 highlightIds={highlightIds}
                 isAllLocations={selectedLocation === ALL || selectedLocation === CUSTOM}
                 currentLocation={selectedLocation !== ALL && selectedLocation !== CUSTOM ? selectedLocation : null}
@@ -732,7 +704,7 @@ export default function ACHPage() {
                 onSaveNotes={handleSaveNotes}
                 showTransferComplete={can(profile, 'ach_transfer_complete')}
                 onTransferComplete={handleTransferComplete}
-                onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}
+                onOpenModal={setModalEntry}
                 profile={profile}
                 attachmentCounts={attachmentCounts}
                 onOpenAttachments={setAttachmentsEntry}
@@ -775,16 +747,11 @@ export default function ACHPage() {
                   entries={tcPaged}
                   sortConfig={sortConfig}
                   onSort={handleSort}
-                  onStartEdit={startEdit}
+                  onOpenFull={setModalEntry}
+                  onSaveFields={handleSaveFields}
                   onDelete={handleDelete}
                   onDeleteMany={handleDeleteMany}
                   onEditMany={handleEditMany}
-                  editingId={editingId}
-                  editRow={editRow}
-                  onEditRowChange={changeEditRow}
-                  onSaveEdit={saveEdit}
-                  onCancelEdit={cancelEdit}
-                  saving={saving}
                   highlightIds={highlightIds}
                   isAllLocations={selectedLocation === ALL || selectedLocation === CUSTOM}
                   currentLocation={selectedLocation !== ALL && selectedLocation !== CUSTOM ? selectedLocation : null}
@@ -796,7 +763,7 @@ export default function ACHPage() {
                   onSaveNotes={handleSaveNotes}
                   showTransferComplete={false}
                   onTransferComplete={handleTransferComplete}
-                  onOpenModal={(entry) => { cancelEdit(); setModalEntry(entry) }}
+                  onOpenModal={setModalEntry}
                   profile={profile}
                   attachmentCounts={attachmentCounts}
                   onOpenAttachments={setAttachmentsEntry}

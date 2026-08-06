@@ -111,7 +111,10 @@ const ROLE_CAPS = {
 }
 
 function Toggle({ checked, onChange, color = 'violet', disabled = false }) {
-  const on = color === 'indigo' ? 'bg-indigo-500' : 'bg-indigo-6000'
+  // 'bg-indigo-6000' used to be here — not a real Tailwind class (indigo stops
+  // at 950), so it compiled to nothing and the violet toggle's ON state had no
+  // track colour at all, leaving it invisible against the page background.
+  const on = color === 'indigo' ? 'bg-indigo-500' : 'bg-violet-500'
   return (
     <button
       onClick={() => !disabled && onChange(!checked)}
@@ -174,7 +177,7 @@ function SetPasswordModal({ user, onClose }) {
                 <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
               </div>
               <p className="text-sm font-semibold text-emerald-700">Password updated</p>
-              <button onClick={onClose} className="mt-4 px-4 py-1.5 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all">Done</button>
+              <button onClick={onClose} className="mt-4 px-4 py-1.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all">Done</button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -192,7 +195,7 @@ function SetPasswordModal({ user, onClose }) {
               {error && <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
-                <button type="submit" disabled={saving || !password} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all disabled:opacity-50">
+                <button type="submit" disabled={saving || !password} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all disabled:opacity-50">
                   {saving ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</> : 'Set Password'}
                 </button>
               </div>
@@ -303,7 +306,7 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
 
           <div className="flex gap-2 justify-end pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all disabled:opacity-50">
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all disabled:opacity-50">
               {saving ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating…</> : 'Create User'}
             </button>
           </div>
@@ -388,7 +391,7 @@ export default function AdminPage() {
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">User Management</h1>
               <p className="text-slate-500 text-sm mt-1.5">Manage accounts and module access for your team</p>
             </div>
-            <button onClick={() => setAddModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-indigo-6000 rounded-xl transition-all shadow-lg shadow-violet-900/30 active:scale-[0.98]">
+            <button onClick={() => setAddModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 rounded-xl transition-all shadow-lg shadow-violet-900/30 active:scale-[0.98]">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
               Add User
             </button>

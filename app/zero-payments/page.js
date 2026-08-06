@@ -6,10 +6,11 @@ import AppHeader from '@/components/AppHeader'
 import FilterBar, { EMPTY_FILTERS } from '@/components/FilterBar'
 import ZeroPaymentsTable from '@/components/ZeroPaymentsTable'
 import ZeroPaymentModal from '@/components/ZeroPaymentModal'
-import { LOCATIONS } from '@/lib/constants'
+import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import {
-  getZeroPayments, saveZeroPayment, deleteZeroPayment,
+  getZeroPayments, saveZeroPayment, deleteZeroPayment, bulkInsertZeroPayments,
 } from '@/lib/zeroPaymentStorage'
+import ImportModal, { parseFlexDate, fuzzyLocation } from '@/components/ImportModal'
 import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
@@ -34,6 +35,7 @@ export default function ZeroPaymentsPage() {
   const [sortConfig, setSortConfig] = useState({ key: 'eobDate', dir: 'desc' })
   const [page, setPage]         = useState(1)
   const [modal, setModal]       = useState(false)
+  const [importModal, setImportModal] = useState(false)
 
   const currentUserInitials = useMemo(() => {
     const name = profile?.full_name?.trim()
@@ -176,6 +178,15 @@ export default function ZeroPaymentsPage() {
                     </svg>
                     ACH Tracker
                   </Link>
+                  {canAdd && (
+                    <button
+                      onClick={() => setImportModal(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                      Import
+                    </button>
+                  )}
                   <button
                     onClick={handleExport}
                     disabled={filtered.length === 0}
@@ -298,6 +309,48 @@ export default function ZeroPaymentsPage() {
           <div className="h-8" />
         </div>
       </div>
+
+      {importModal && (
+        <ImportModal
+          title="Import Zero Payments"
+          subtitle="Paste or upload a CSV — column names must match the header row below"
+          locationOptions={LOCATIONS}
+          columns={[
+            { key: 'eobDate', label: 'eobDate', required: true, example: '01/15/2025',
+              aliases: ['eobdate', 'eob_date', 'eob date', 'date', 'eob', 'processdate', 'processeddate', 'postingdate', 'posting_date', 'checkdate', 'remitdate'],
+              validate: (v) => parseFlexDate(v) ? null : 'Cannot parse date — try MM/DD/YYYY or YYYY-MM-DD',
+              transform: (v) => parseFlexDate(v) },
+            { key: 'location', label: 'location', required: false, example: 'Romeoville',
+              aliases: ['location', 'clinic', 'site', 'branch', 'office', 'belongsto', 'belongs_to', 'practice', 'facility'],
+              validate: (v, locs) => !v || fuzzyLocation(v, locs) ? null : `Location not recognized: "${v}"`,
+              transform: (v, locs) => v ? (fuzzyLocation(v, locs) || v) : null },
+            { key: 'insuranceName', label: 'insuranceName', required: false, example: 'Delta Dental',
+              aliases: ['insurancename', 'insurance_name', 'insurance', 'payer', 'carrier', 'insurer', 'payername', 'insurancecompany', 'plan'] },
+            { key: 'match', label: 'match', required: false, example: 'No',
+              aliases: ['match', 'matched', 'reconciled', 'cleared', 'verified'],
+              validate: (v) => !v || ['Yes', 'No', 'Partial'].includes(v) ? null : 'match must be Yes, No, or Partial' },
+            { key: 'status', label: 'status', required: false, example: 'Not Posted',
+              aliases: ['status', 'state', 'condition'],
+              validate: (v) => !v || ACH_STATUSES.includes(v) ? null : `status must be one of: ${ACH_STATUSES.join(', ')}`,
+              defaultValue: 'Not Posted' },
+            { key: 'initials', label: 'initials', required: false, example: 'JD',
+              aliases: ['initials', 'by', 'staff', 'processedby', 'handledby', 'reviewer', 'user', 'employee'] },
+            { key: 'notes', label: 'notes', required: false, example: 'Patient responsibility',
+              aliases: ['notes', 'note', 'remarks', 'comment', 'comments', 'memo', 'reason', 'description'] },
+          ]}
+          onClose={() => setImportModal(false)}
+          onImport={async (rows) => {
+            const saved = await bulkInsertZeroPayments(rows)
+            setEntries((prev) => [...saved, ...prev])
+            logActivity({
+              action: 'import', module: 'Zero Payments',
+              description: `Imported ${saved.length} zero payment${saved.length === 1 ? '' : 's'} from CSV`,
+              metadata: { count: saved.length },
+            })
+            return saved
+          }}
+        />
+      )}
 
       {modal && (
         <ZeroPaymentModal

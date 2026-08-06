@@ -405,11 +405,17 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
                             : <span className="text-slate-300">—</span>}
                         </td>
                         {/* Belongs To — single location, or a split allocation.
-                            The Split toggle lives here; see SplitCell. */}
+                            The Split toggle lives here; see SplitCell.
+
+                            Gated on canEditMatch, NOT canEditFull. Assigning revenue
+                            to a location is reconciliation work, same as Match and
+                            Status, and management/user roles do it daily. canEditFull
+                            is admin-only and gates the payment facts — date, amount,
+                            description — which live behind the pencil. */}
                         <td className="px-4 py-3">
                           <SplitCell
                             entry={entry}
-                            canEdit={canEditFull}
+                            canEdit={canEditMatch}
                             display={toCell}
                             onSaveLocation={(v) => commitEntry(entry, 'location', v)}
                             onSaveSplits={(splits) => onSaveFields?.(entry, {

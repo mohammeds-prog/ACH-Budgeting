@@ -65,7 +65,7 @@ export default function ACHPage() {
   const [allInsurers, setAllInsurers] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState(ALL)
-  const [filters, setFilters] = useState({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '', receivedBy: [], belongsTo: [] })
+  const [filters, setFilters] = useState({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
   const [showTCView, setShowTCView] = useState(false)
   const [tcPage, setTcPage] = useState(1)
   const [sortConfig, setSortConfig] = useState({ key: 'postingDate', dir: 'desc' })
@@ -95,7 +95,7 @@ export default function ACHPage() {
   useEffect(() => {
     if (!highlightId || entries.length === 0 || highlightDone.current) return
     highlightDone.current = true
-    setFilters({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '', receivedBy: [], belongsTo: [] })
+    setFilters({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
     setSelectedLocation(ALL)
     const sorted = [...entries].sort((a, b) => b.postingDate.localeCompare(a.postingDate))
     const idx = sorted.findIndex((e) => e.id === highlightId)
@@ -128,6 +128,12 @@ export default function ACHPage() {
         }
         if (e.transferComplete) return false
         if (filters.status && e.status !== filters.status) return false
+        if (filters.initials) {
+          // Split entries keep initials per location, so match the parent or any split.
+          const own = (e.initials || '').trim()
+          const inSplits = e.splits?.some((sp) => (sp.initials || '').trim() === filters.initials)
+          if (own !== filters.initials && !inSplits) return false
+        }
         if (filters.insurance && e.insuranceName !== filters.insurance) return false
         if (selectedLocation === CUSTOM && filters.receivedBy?.length > 0 && !filters.receivedBy.includes(e.fromLocation)) return false
         if (selectedLocation === CUSTOM && filters.belongsTo?.length > 0) {
@@ -174,6 +180,12 @@ export default function ACHPage() {
         if (filters.from && e.postingDate < filters.from) return false
         if (filters.to && e.postingDate > filters.to) return false
         if (filters.status && e.status !== filters.status) return false
+        if (filters.initials) {
+          // Split entries keep initials per location, so match the parent or any split.
+          const own = (e.initials || '').trim()
+          const inSplits = e.splits?.some((sp) => (sp.initials || '').trim() === filters.initials)
+          if (own !== filters.initials && !inSplits) return false
+        }
         if (filters.insurance && e.insuranceName !== filters.insurance) return false
         if (filters.search) {
           const q = filters.search.toLowerCase()
@@ -244,6 +256,11 @@ export default function ACHPage() {
       if (filters.from && e.postingDate < filters.from) return false
       if (filters.to && e.postingDate > filters.to) return false
       if (filters.status && e.status !== filters.status) return false
+      if (filters.initials) {
+        const own = (e.initials || '').trim()
+        const inSplits = e.splits?.some((sp) => (sp.initials || '').trim() === filters.initials)
+        if (own !== filters.initials && !inSplits) return false
+      }
       if (filters.insurance && e.insuranceName !== filters.insurance) return false
       if (filters.search) {
         const q = filters.search.toLowerCase()
@@ -313,6 +330,12 @@ export default function ACHPage() {
     .reduce((sum, e) => sum + Number(e.amount || 0), 0)
   const uniqueYears      = [...new Set(entries.map((e) => new Date(e.postingDate).getFullYear()).filter(Boolean))].sort((a, b) => b - a)
   const uniqueInsurers   = [...new Set(entries.map((e) => e.insuranceName).filter(Boolean))].sort()
+  // Initials live on the entry and, for split payments, on each split — collect both.
+  const uniqueInitials   = [...new Set(
+    entries.flatMap((e) => [e.initials, ...(e.splits || []).map((sp) => sp.initials)])
+      .map((v) => (v || '').trim())
+      .filter(Boolean)
+  )].sort()
   const fmt = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2 })
 
   function handleSort(key) {
@@ -643,7 +666,7 @@ export default function ACHPage() {
             </div>
           )}
 
-          <FilterBar filters={filters} onChange={setFilters} uniqueYears={uniqueYears} uniqueInsurers={uniqueInsurers} />
+          <FilterBar filters={filters} onChange={setFilters} uniqueYears={uniqueYears} uniqueInsurers={uniqueInsurers} uniqueInitials={uniqueInitials} />
         </div>
 
         {/* Table — full width */}

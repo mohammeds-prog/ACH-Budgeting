@@ -63,6 +63,11 @@ export default function ZeroPaymentsPage() {
     [entries]
   )
 
+  const uniqueInitials = useMemo(
+    () => [...new Set(entries.map((e) => (e.initials || '').trim()).filter(Boolean))].sort(),
+    [entries]
+  )
+
   const filtered = useMemo(() => {
     return entries
       .filter((e) => {
@@ -82,6 +87,7 @@ export default function ZeroPaymentsPage() {
         }
         if (filters.status && e.status !== filters.status) return false
         if (filters.insurance && e.insuranceName !== filters.insurance) return false
+        if (filters.initials && (e.initials || '').trim() !== filters.initials) return false
         if (filters.search) {
           const q = filters.search.toLowerCase()
           const hay = `${e.insuranceName || ''} ${e.notes || ''} ${e.initials || ''} ${e.status || ''} ${shortLoc(e.location) || ''}`.toLowerCase()
@@ -149,9 +155,13 @@ export default function ZeroPaymentsPage() {
     })
   }
 
+  // Zero payments are entered by hand — there's no bank feed behind them the way
+  // there is for ACH. So adding and importing here are ordinary reconciliation
+  // work, gated on the edit permission rather than the admin-only 'ach_add'.
+  // Delete stays admin-only because it's destructive and unrecoverable.
   const canEdit   = can(profile, 'ach_edit_full') || can(profile, 'ach_edit_match')
   const canDelete = can(profile, 'ach_delete')
-  const canAdd    = can(profile, 'ach_add')
+  const canAdd    = canEdit
 
   return (
     <div className="min-h-screen futuristic-bg relative">
@@ -265,6 +275,7 @@ export default function ZeroPaymentsPage() {
             onChange={setFilters}
             uniqueYears={uniqueYears}
             uniqueInsurers={uniqueInsurers}
+            uniqueInitials={uniqueInitials}
           />
 
           {loadError && (

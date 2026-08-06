@@ -93,14 +93,16 @@ const ROLE_CAPS = {
     { label: 'Edit: Notes · Initials',      color: 'bg-amber-50 border-amber-200 text-amber-700' },
     { label: 'Edit: Status · Match',        color: 'bg-amber-50 border-amber-200 text-amber-700' },
     { label: 'Edit: Received By · Belongs', color: 'bg-amber-50 border-amber-200 text-amber-700' },
-    { label: 'No Add · Delete · Import',    color: 'bg-slate-100 border-slate-200 text-slate-500' },
+    { label: 'Zero Pmts: Add · Import',     color: 'bg-amber-50 border-amber-200 text-amber-700' },
+    { label: 'ACH: No Add · Delete · Import', color: 'bg-slate-100 border-slate-200 text-slate-500' },
     { label: 'No Transfer Complete',        color: 'bg-slate-100 border-slate-200 text-slate-500' },
   ],
   user: [
     { label: 'Edit: Notes · Initials',   color: 'bg-violet-50 border-violet-200 text-violet-700' },
     { label: 'Edit: Status · Match',     color: 'bg-violet-50 border-violet-200 text-violet-700' },
     { label: 'Edit: Belongs To',         color: 'bg-violet-50 border-violet-200 text-violet-700' },
-    { label: 'No Add · Delete · Import', color: 'bg-slate-100 border-slate-200 text-slate-500' },
+    { label: 'Zero Pmts: Add · Import',  color: 'bg-violet-50 border-violet-200 text-violet-700' },
+    { label: 'ACH: No Add · Delete · Import', color: 'bg-slate-100 border-slate-200 text-slate-500' },
     { label: 'No Transfer Complete',     color: 'bg-slate-100 border-slate-200 text-slate-500' },
   ],
   viewer: [

@@ -21,10 +21,10 @@ const MATCH_OPTS = [
 
 export const EMPTY_FILTERS = {
   month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '',
-  receivedBy: [], belongsTo: [],
+  initials: '', receivedBy: [], belongsTo: [],
 }
 
-export default function FilterBar({ filters, onChange, uniqueYears, uniqueInsurers = [] }) {
+export default function FilterBar({ filters, onChange, uniqueYears, uniqueInsurers = [], uniqueInitials = [] }) {
   function set(key, value) {
     onChange((prev) => ({ ...prev, [key]: value }))
   }
@@ -34,9 +34,10 @@ export default function FilterBar({ filters, onChange, uniqueYears, uniqueInsure
     return Array.isArray(v) ? v.length > 0 : v === true || (typeof v === 'string' && v !== '')
   }).length
 
-  const yearOpts    = uniqueYears.map((y) => ({ value: String(y), label: String(y) }))
-  const statusOpts  = ACH_STATUSES.map((s) => ({ value: s, label: s }))
-  const insurerOpts = uniqueInsurers.map((i) => ({ value: i, label: i }))
+  const yearOpts     = uniqueYears.map((y) => ({ value: String(y), label: String(y) }))
+  const statusOpts   = ACH_STATUSES.map((s) => ({ value: s, label: s }))
+  const insurerOpts  = uniqueInsurers.map((i) => ({ value: i, label: i }))
+  const initialsOpts = uniqueInitials.map((i) => ({ value: i, label: i }))
 
   return (
     <div className="glass-card rounded-2xl p-4 space-y-3">
@@ -70,6 +71,7 @@ export default function FilterBar({ filters, onChange, uniqueYears, uniqueInsure
         <G label="Match"><Select value={filters.match} onChange={(v) => set('match', v)} placeholder="All" options={MATCH_OPTS} /></G>
         <G label="Insurance"><Select value={filters.insurance} onChange={(v) => set('insurance', v)} placeholder="All" options={insurerOpts} /></G>
         <G label="Status"><Select value={filters.status} onChange={(v) => set('status', v)} placeholder="All statuses" options={statusOpts} /></G>
+        <G label="Initials"><Select value={filters.initials} onChange={(v) => set('initials', v)} placeholder="All" options={initialsOpts} /></G>
         <G label="Search">
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

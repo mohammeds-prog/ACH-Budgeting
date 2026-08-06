@@ -24,9 +24,13 @@ create index if not exists idx_zero_payments_eob_date on zero_payments (eob_date
 create index if not exists idx_zero_payments_location on zero_payments (location);
 
 -- ── RLS ──────────────────────────────────────────────────────────────
--- Same model as ach_entries: read for anyone who can view ACH, insert
--- and delete for admins only, update for any ACH viewer (so non-admins
--- can maintain match/status/notes, mirroring the ACH page).
+-- Deliberately looser on INSERT than ach_entries. ACH rows arrive from the
+-- bank feed, so creating one by hand is an admin action. Zero payments have
+-- no feed behind them — every row is typed in by whoever worked the EOB — so
+-- insert is ordinary reconciliation work and is open to editors
+-- (admin/management/user), matching who can add from the UI.
+--
+-- Delete stays admin-only: it's destructive and there's no undo.
 alter table zero_payments enable row level security;
 
 drop policy if exists zp_select on zero_payments;
@@ -37,7 +41,7 @@ drop policy if exists zp_delete on zero_payments;
 create policy zp_select on zero_payments for select to authenticated
   using (can_view_ach());
 create policy zp_insert on zero_payments for insert to authenticated
-  with check (is_admin());
+  with check (can_view_ach() and is_editor());
 create policy zp_update on zero_payments for update to authenticated
   using (can_view_ach()) with check (can_view_ach());
 create policy zp_delete on zero_payments for delete to authenticated

@@ -11,6 +11,8 @@ import {
   getZeroPayments, saveZeroPayment, deleteZeroPayment, bulkInsertZeroPayments,
 } from '@/lib/zeroPaymentStorage'
 import ImportModal, { parseFlexDate, fuzzyLocation } from '@/components/ImportModal'
+import AttachmentsPanel from '@/components/AttachmentsPanel'
+import { getAttachmentCounts } from '@/lib/storage'
 import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
@@ -36,6 +38,8 @@ export default function ZeroPaymentsPage() {
   const [page, setPage]         = useState(1)
   const [modal, setModal]       = useState(false)
   const [importModal, setImportModal] = useState(false)
+  const [attachmentsEntry, setAttachmentsEntry] = useState(null)
+  const [attachmentCounts, setAttachmentCounts] = useState({})
 
   const currentUserInitials = useMemo(() => {
     const name = profile?.full_name?.trim()
@@ -48,6 +52,7 @@ export default function ZeroPaymentsPage() {
       .then(setEntries)
       .catch(() => setLoadError('Could not load zero payments. Check your connection and refresh.'))
       .finally(() => setLoading(false))
+    getAttachmentCounts('zero').then(setAttachmentCounts).catch(() => {})
   }, [])
 
   useEffect(() => { setPage(1) }, [filters, sortConfig, selectedLocation])
@@ -292,6 +297,8 @@ export default function ZeroPaymentsPage() {
             canEdit={canEdit}
             canDelete={canDelete}
             currentUserInitials={currentUserInitials}
+            attachmentCounts={attachmentCounts}
+            onOpenAttachments={setAttachmentsEntry}
           />
 
           {totalPages > 1 && (
@@ -320,6 +327,18 @@ export default function ZeroPaymentsPage() {
           <div className="h-8" />
         </div>
       </div>
+
+      {attachmentsEntry && (
+        <AttachmentsPanel
+          kind="zero"
+          label="EOB Files"
+          entryId={attachmentsEntry.id}
+          entryDescription={[attachmentsEntry.insuranceName, shortLoc(attachmentsEntry.location)].filter(Boolean).join(' · ')}
+          uploaderEmail={profile?.email}
+          onClose={() => setAttachmentsEntry(null)}
+          onCountChange={(id, n) => setAttachmentCounts((prev) => ({ ...prev, [id]: n }))}
+        />
+      )}
 
       {importModal && (
         <ImportModal

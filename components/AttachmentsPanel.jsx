@@ -40,7 +40,9 @@ function FileTypeIcon({ mime }) {
   )
 }
 
-export default function AttachmentsPanel({ entryId, entryDescription, onClose, uploaderEmail, onCountChange }) {
+// `kind` selects which record type the files belong to: 'ach' (default) or
+// 'zero'. See the KINDS map in lib/storage.js.
+export default function AttachmentsPanel({ entryId, entryDescription, onClose, uploaderEmail, onCountChange, kind = 'ach', label = 'Attachments' }) {
   const [files, setFiles]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -54,11 +56,11 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
 
   useEffect(() => {
     if (!entryId) return
-    getAttachments(entryId)
+    getAttachments(entryId, kind)
       .then(setFiles)
       .catch(() => setError('Failed to load attachments.'))
       .finally(() => setLoading(false))
-  }, [entryId])
+  }, [entryId, kind])
 
   async function processFiles(fileList) {
     const list = Array.from(fileList)
@@ -75,7 +77,7 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
     const added = []
     try {
       for (const f of list) {
-        const uploaded = await uploadAttachment(entryId, f, uploaderEmail)
+        const uploaded = await uploadAttachment(entryId, f, uploaderEmail, kind)
         added.push(uploaded)
         setFiles((prev) => [...prev, uploaded])
       }
@@ -111,7 +113,7 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
     setConfirmDelete(null)
     setDeletingId(att.id)
     try {
-      await deleteAttachment(att.id, att.file_path)
+      await deleteAttachment(att.id, att.file_path, kind)
       const next = files.filter((f) => f.id !== att.id)
       setFiles(next)
       onCountChange?.(entryId, next.length)
@@ -138,7 +140,7 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
                 </svg>
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-slate-900 leading-tight">Attachments</h2>
+                <h2 className="text-sm font-semibold text-slate-900 leading-tight">{label}</h2>
                 {files.length > 0 && <p className="text-[11px] text-slate-400">{files.length} file{files.length !== 1 ? 's' : ''}</p>}
               </div>
             </div>

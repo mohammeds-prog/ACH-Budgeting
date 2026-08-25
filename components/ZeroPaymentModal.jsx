@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
+import DateInput from './DateInput'
 
 const inp = 'w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150 focus:border-violet-400 focus:ring-2 focus:ring-violet-100'
 
@@ -72,7 +73,7 @@ export default function ZeroPaymentModal({ onSave, onClose, currentUserInitials 
           <div className="p-6 space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-2 gap-4">
               <Field label="EOB Date *">
-                <input type="date" value={form.eobDate} onChange={(e) => set('eobDate', e.target.value)} className={inp} required />
+                <DateInput value={form.eobDate} onChange={(iso) => set('eobDate', iso)} className="[&_input[type=text]]:py-2 [&_input[type=text]]:text-sm [&_input[type=text]]:rounded-xl" />
               </Field>
               <Field label="Location">
                 <select value={form.location} onChange={(e) => set('location', e.target.value)} className={`${inp} appearance-none cursor-pointer`}>

@@ -5,6 +5,7 @@ import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import { useProfile } from '@/lib/profileContext'
 import { extractInsuranceName } from '@/lib/achParser'
 import Select from './Select'
+import DateInput from './DateInput'
 
 const EMPTY = { postingDate: '', details: '', description: '', insuranceName: '', amount: '', fromLocation: '', location: '', match: '', status: '', initials: '', splits: null }
 const EMPTY_SPLIT = { location: '', amount: '' }
@@ -170,7 +171,7 @@ export default function EntryModal({ entry, onSave, onClose }) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <F label="Posting Date" required error={errors.postingDate}>
-              <input type="date" value={form.postingDate} onChange={(e) => set('postingDate', e.target.value)} className={`${inp} ${errors.postingDate ? inpErr : ''}`} />
+              <DateInput value={form.postingDate} onChange={(iso) => set('postingDate', iso)} className="[&_input[type=text]]:py-2 [&_input[type=text]]:text-sm [&_input[type=text]]:rounded-xl" />
             </F>
             <F label="Amount ($)" required error={errors.amount}>
               <input type="number" step="0.01" value={form.amount} onChange={(e) => set('amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={`${inp} ${errors.amount ? inpErr : ''}`} />

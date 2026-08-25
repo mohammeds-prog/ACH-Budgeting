@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { LOCATIONS } from '@/lib/expenditureStorage'
+import DateInput from './DateInput'
 
 const EMPTY = { date: '', person: '', description: '', vendor: '', clinic: '', amount: '' }
 
@@ -79,7 +80,7 @@ export default function ExpEntryModal({ entry, defaultMonth, defaultLocation, ve
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <F label="Date" required error={errors.date}>
-              <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className={`${inp} ${errors.date ? inpErr : ''}`} />
+              <DateInput value={form.date} onChange={(iso) => set('date', iso)} className="[&_input[type=text]]:py-2 [&_input[type=text]]:text-sm [&_input[type=text]]:rounded-xl" />
             </F>
             <F label="Amount ($)" required error={errors.amount}>
               <input type="number" step="0.01" min="0" value={form.amount} onChange={(e) => set('amount', e.target.value)} onWheel={(e) => e.target.blur()} placeholder="0.00" className={`${inp} ${errors.amount ? inpErr : ''}`} />

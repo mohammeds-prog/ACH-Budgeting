@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import { CellSelect, CellInput, matchTone, statusTone, locationTone } from './cells'
+import DateInput from './DateInput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Same layout contract as ACHTable: `table-layout: fixed` + a <colgroup> built
@@ -127,12 +128,10 @@ export default function ZeroPaymentsTable({
                   >
                     <td className="px-4 py-3">
                       {canEdit ? (
-                        <input
-                          type="date"
+                        <DateInput
                           value={e.eobDate || ''}
-                          onChange={(ev) => commit(e, 'eobDate', ev.target.value)}
+                          onChange={(iso) => commit(e, 'eobDate', iso)}
                           title="EOB Date"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] tabular-nums text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                         />
                       ) : (
                         <span className="text-slate-700 font-medium tabular-nums text-xs">{formatDate(e.eobDate)}</span>

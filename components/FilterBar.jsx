@@ -2,6 +2,7 @@
 
 import { ACH_STATUSES } from '@/lib/constants'
 import Select from './Select'
+import DateInput from './DateInput'
 
 const MONTHS = [
   { value: '1', label: 'January' }, { value: '2', label: 'February' },
@@ -101,12 +102,5 @@ function G({ label, children }) {
 }
 
 function DateIn({ value, onChange }) {
-  return (
-    <input
-      type="date"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-2.5 py-1.5 text-sm rounded-xl border bg-white border-slate-200 text-slate-900 outline-none transition-all duration-150 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100/50 hover:border-slate-300"
-    />
-  )
+  return <DateInput value={value} onChange={onChange} className="min-w-[140px]" />
 }

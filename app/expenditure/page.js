@@ -16,6 +16,7 @@ import ImportModal, { parseFlexDate, fuzzyLocation, parseAmount } from '@/compon
 import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
+import DateInput from '@/components/DateInput'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -75,7 +76,7 @@ function EditRow({ row, onChange, onSave, onCancel, saving, vendors = [], onAddV
 
   return (
     <tr className="border-b border-violet-300/50 bg-violet-50/60">
-      <td className="px-4 py-2"><input type="date" value={row.date || ''} onChange={(e) => onChange('date', e.target.value)} className={iCell} style={{ minWidth: 120 }} /></td>
+      <td className="px-4 py-2"><DateInput value={row.date || ''} onChange={(iso) => onChange('date', iso)} /></td>
       <td className="px-4 py-2"><input type="text" value={row.person || ''} onChange={(e) => onChange('person', e.target.value)} placeholder="Name…" className={iCell} style={{ minWidth: 110 }} /></td>
       <td className="px-4 py-2">
         {addingVendor ? (
@@ -627,11 +628,9 @@ export default function ExpenditurePage() {
                   ))}
                   {vendorDatePreset === 'custom' && (
                     <div className="flex items-center gap-1.5 ml-1">
-                      <input type="date" value={vendorCustomFrom} onChange={(e) => setVendorCustomFrom(e.target.value)}
-                        className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-violet-400" />
+                      <DateInput value={vendorCustomFrom} onChange={setVendorCustomFrom} />
                       <span className="text-slate-400 text-xs">→</span>
-                      <input type="date" value={vendorCustomTo} onChange={(e) => setVendorCustomTo(e.target.value)}
-                        className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-violet-400" />
+                      <DateInput value={vendorCustomTo} onChange={setVendorCustomTo} />
                     </div>
                   )}
                 </div>

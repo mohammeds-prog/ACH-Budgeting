@@ -12,7 +12,8 @@ import {
 } from '@/lib/zeroPaymentStorage'
 import ImportModal, { parseFlexDate, fuzzyLocation } from '@/components/ImportModal'
 import AttachmentsPanel from '@/components/AttachmentsPanel'
-import { getAttachmentCounts } from '@/lib/storage'
+import EobImportModal from '@/components/EobImportModal'
+import { getAttachmentCounts, uploadAttachment } from '@/lib/storage'
 import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
@@ -38,6 +39,7 @@ export default function ZeroPaymentsPage() {
   const [page, setPage]         = useState(1)
   const [modal, setModal]       = useState(false)
   const [importModal, setImportModal] = useState(false)
+  const [eobModal, setEobModal] = useState(false)
   const [attachmentsEntry, setAttachmentsEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
 
@@ -149,6 +151,49 @@ export default function ZeroPaymentsPage() {
     }
   }
 
+  // Each EOB PDF becomes one zero-payment row with the file attached to it.
+  // Uploads run one at a time so a single bad file can't take the batch down —
+  // whatever succeeded is kept and the failures are reported back.
+  async function handleEobImport(items, onProgress) {
+    const created = []
+    const failed = []
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]
+      try {
+        const saved = await saveZeroPayment({
+          eobDate:       it.date,
+          location:      it.location || '',
+          insuranceName: it.insuranceName || '',
+          match:         '',
+          status:        'Not Posted',
+          initials:      '',
+          notes:         '',
+        })
+        try {
+          await uploadAttachment(saved.id, it.file, profile?.email, 'zero')
+          setAttachmentCounts((prev) => ({ ...prev, [saved.id]: 1 }))
+        } catch {
+          // The row is real even if the file didn't land — say so rather than
+          // rolling back work the user can see.
+          failed.push({ name: it.file.name, reason: 'row created, file upload failed' })
+        }
+        created.push(saved)
+      } catch {
+        failed.push({ name: it.file.name, reason: 'could not save' })
+      }
+      onProgress?.(i + 1)
+    }
+    if (created.length) {
+      setEntries((prev) => [...created, ...prev])
+      logActivity({
+        action: 'import', module: 'Zero Payments',
+        description: `Imported ${created.length} EOB${created.length === 1 ? '' : 's'}`,
+        metadata: { count: created.length, failed: failed.length },
+      })
+    }
+    return { imported: created.length, failed }
+  }
+
   function handleExport() {
     if (filtered.length === 0) return
     const locationLabel = selectedLocation === ALL ? 'All Locations' : shortLoc(selectedLocation)
@@ -193,6 +238,17 @@ export default function ZeroPaymentsPage() {
                     </svg>
                     ACH Tracker
                   </Link>
+                  {canAdd && (
+                    <button
+                      onClick={() => setEobModal(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
+                      </svg>
+                      Import EOBs
+                    </button>
+                  )}
                   {canAdd && (
                     <button
                       onClick={() => setImportModal(true)}
@@ -327,6 +383,14 @@ export default function ZeroPaymentsPage() {
           <div className="h-8" />
         </div>
       </div>
+
+      {eobModal && (
+        <EobImportModal
+          uniqueInsurers={uniqueInsurers}
+          onClose={() => setEobModal(false)}
+          onImport={handleEobImport}
+        />
+      )}
 
       {attachmentsEntry && (
         <AttachmentsPanel

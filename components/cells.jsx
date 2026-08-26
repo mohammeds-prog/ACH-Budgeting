@@ -163,3 +163,97 @@ export function StatusBadge({ value }) {
   const map = { 'Posted': 'bg-indigo-100 text-indigo-700 border-indigo-200', 'In Progress': 'bg-amber-100 text-amber-700 border-amber-200', 'Not Posted': 'bg-slate-100 text-slate-500 border-slate-200' }
   return <span className={`badge text-[10px] border ${map[value] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>{value}</span>
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Overflow menu for a table row.
+//
+// A row accumulates actions over time and five flat icons give a paperclip you
+// click hourly the same weight as a delete you click monthly. This holds the
+// occasional and the destructive ones so the row stays calm and the frequent
+// actions stay one click away.
+//
+// Positioned `fixed` from a measured rect: the table wrapper has
+// overflow-x-auto, which clips absolutely-positioned children. Flips above the
+// button when there isn't room below.
+// ─────────────────────────────────────────────────────────────────────────────
+export function RowMenu({ items = [], label = 'More actions' }) {
+  const [pos, setPos] = useState(null)
+  const wrapRef = useRef(null)
+  const btnRef = useRef(null)
+
+  const visible = items.filter(Boolean)
+
+  useEffect(() => {
+    if (!pos) return
+    const close = (e) => { if (!wrapRef.current?.contains(e.target)) setPos(null) }
+    const esc = (e) => { if (e.key === 'Escape') setPos(null) }
+    // Named, so removeEventListener actually matches what was added — an inline
+    // arrow here would leave a listener behind on every open.
+    const dismiss = () => setPos(null)
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    // A menu pinned to a measured rect goes stale the moment anything scrolls.
+    window.addEventListener('scroll', dismiss, true)
+    window.addEventListener('resize', dismiss)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', esc)
+      window.removeEventListener('scroll', dismiss, true)
+      window.removeEventListener('resize', dismiss)
+    }
+  }, [pos])
+
+  if (visible.length === 0) return null
+
+  function toggle() {
+    if (pos) { setPos(null); return }
+    const r = btnRef.current.getBoundingClientRect()
+    const height = visible.length * 34 + 10
+    const below = window.innerHeight - r.bottom - 6
+    setPos({
+      top: below < height ? undefined : r.bottom + 6,
+      bottom: below < height ? window.innerHeight - r.top + 6 : undefined,
+      left: Math.min(r.right - 190, window.innerWidth - 202),
+    })
+  }
+
+  return (
+    <div ref={wrapRef} className="inline-block">
+      <button
+        ref={btnRef}
+        onClick={(e) => { e.stopPropagation(); toggle() }}
+        title={label}
+        aria-haspopup="menu"
+        aria-expanded={!!pos}
+        className={`p-1.5 rounded-lg transition-colors ${pos ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`}
+      >
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <circle cx="4" cy="10" r="1.6" /><circle cx="10" cy="10" r="1.6" /><circle cx="16" cy="10" r="1.6" />
+        </svg>
+      </button>
+
+      {pos && (
+        <div
+          role="menu"
+          style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, width: 190, zIndex: 60 }}
+          className="rounded-xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-300/40"
+        >
+          {visible.map((it, i) => (
+            <button
+              key={i}
+              role="menuitem"
+              onClick={(e) => { e.stopPropagation(); setPos(null); it.onClick() }}
+              className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors ${
+                it.danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span className="shrink-0 opacity-70">{it.icon}</span>
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

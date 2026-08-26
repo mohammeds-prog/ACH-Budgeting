@@ -26,7 +26,7 @@ const COLS = [
   { key: 'initials',      label: 'Initials',  width: 105 },
   { key: 'notes',         label: 'Notes',     width: 300 },
 ]
-const ACTIONS_WIDTH = 105
+const ACTIONS_WIDTH = 135
 const COLS_WIDTH    = COLS.reduce((sum, c) => sum + c.width, 0) + ACTIONS_WIDTH
 
 function shortLoc(loc) {
@@ -50,7 +50,7 @@ export default function ZeroPaymentsTable({
   onSaveFields, onDelete,
   canEdit = true, canDelete = true,
   currentUserInitials = '',
-  attachmentCounts = {}, onOpenAttachments,
+  attachmentCounts = {}, onOpenAttachments, onOpenActivity,
 }) {
   const [confirmId, setConfirmId] = useState(null)
 
@@ -214,6 +214,15 @@ export default function ZeroPaymentsTable({
                         </div>
                       ) : (
                         <div className="flex items-center gap-0.5">
+                        {onOpenActivity && (
+                          <button
+                            onClick={() => onOpenActivity(e)}
+                            title="Activity — who changed what, and when"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                          </button>
+                        )}
                         {onOpenAttachments && (
                           <button
                             onClick={() => onOpenAttachments(e)}

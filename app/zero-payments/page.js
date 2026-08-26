@@ -13,6 +13,7 @@ import {
 import ImportModal, { parseFlexDate, fuzzyLocation } from '@/components/ImportModal'
 import AttachmentsPanel from '@/components/AttachmentsPanel'
 import EobImportModal from '@/components/EobImportModal'
+import ActivityPanel from '@/components/ActivityPanel'
 import { getAttachmentCounts, uploadAttachment } from '@/lib/storage'
 import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
@@ -41,6 +42,7 @@ export default function ZeroPaymentsPage() {
   const [importModal, setImportModal] = useState(false)
   const [eobModal, setEobModal] = useState(false)
   const [attachmentsEntry, setAttachmentsEntry] = useState(null)
+  const [activityEntry, setActivityEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
 
   const currentUserInitials = useMemo(() => {
@@ -129,7 +131,9 @@ export default function ZeroPaymentsPage() {
     logActivity({
       action: 'update', module: 'Zero Payments',
       description: `Edited ${Object.keys(patch).join(', ')} — ${entry.insuranceName || 'entry'}`,
-      metadata: { id: entry.id, patch },
+      // `before` lets the activity panel show "Status: Not Posted → Posted"
+      // rather than just "set Status to Posted".
+      metadata: { id: entry.id, patch, before: Object.fromEntries(Object.keys(patch).map((k) => [k, entry[k] ?? null])) },
     })
   }
 
@@ -188,7 +192,8 @@ export default function ZeroPaymentsPage() {
       logActivity({
         action: 'import', module: 'Zero Payments',
         description: `Imported ${created.length} EOB${created.length === 1 ? '' : 's'}`,
-        metadata: { count: created.length, failed: failed.length },
+        // ids so each imported row can show its own "Created by import" line.
+        metadata: { count: created.length, failed: failed.length, ids: created.map((e) => e.id) },
       })
     }
     return { imported: created.length, failed }
@@ -355,6 +360,7 @@ export default function ZeroPaymentsPage() {
             currentUserInitials={currentUserInitials}
             attachmentCounts={attachmentCounts}
             onOpenAttachments={setAttachmentsEntry}
+            onOpenActivity={setActivityEntry}
           />
 
           {totalPages > 1 && (
@@ -389,6 +395,14 @@ export default function ZeroPaymentsPage() {
           uniqueInsurers={uniqueInsurers}
           onClose={() => setEobModal(false)}
           onImport={handleEobImport}
+        />
+      )}
+
+      {activityEntry && (
+        <ActivityPanel
+          entryId={activityEntry.id}
+          entryLabel={[activityEntry.insuranceName, shortLoc(activityEntry.location)].filter(Boolean).join(' · ')}
+          onClose={() => setActivityEntry(null)}
         />
       )}
 

@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import AppHeader from '@/components/AppHeader'
 import Select from '@/components/Select'
 import { supabase } from '@/lib/supabase'
+import { describeChange } from '@/lib/entryActivity'
 
 const MODULE_COLORS = {
   'ACH':           { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200' },
   'Supply Budget': { bg: 'bg-violet-50',  text: 'text-violet-700',  border: 'border-violet-200' },
+  'Zero Payments': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   'Admin':         { bg: 'bg-slate-100',  text: 'text-slate-600',   border: 'border-slate-200'  },
 }
 const ACTION_COLORS = {
@@ -16,6 +18,7 @@ const ACTION_COLORS = {
   'update': { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   label: 'Updated'  },
   'delete': { bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',     label: 'Deleted'  },
   'import': { bg: 'bg-violet-50',  text: 'text-violet-700',  border: 'border-violet-200',  label: 'Imported' },
+  'export': { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   label: 'Exported' },
 }
 
 function formatChicago(ts) {
@@ -113,13 +116,15 @@ export default function ActivityLogPage() {
                         const mod = MODULE_COLORS[log.module] || MODULE_COLORS['Admin']
                         const act = ACTION_COLORS[log.action] || { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', label: log.action }
                         const meta = log.metadata || {}
-                        const canNavigate = log.module === 'ACH' || log.module === 'Supply Budget' || log.module === 'Admin'
+                        const canNavigate = log.module === 'ACH' || log.module === 'Supply Budget' || log.module === 'Zero Payments' || log.module === 'Admin'
 
                         function handleClick() {
                           if (!canNavigate) return
                           if (log.module === 'ACH') {
                             const ids = meta.ids?.length ? meta.ids.join(',') : meta.id
                             router.push(ids ? `/ach?highlight=${ids}` : '/ach')
+                          } else if (log.module === 'Zero Payments') {
+                            router.push('/zero-payments')
                           } else if (log.module === 'Supply Budget') {
                             router.push(meta.id ? `/expenditure?highlight=${meta.id}` : '/expenditure')
                           } else {
@@ -144,8 +149,23 @@ export default function ActivityLogPage() {
                             <td className="px-5 py-3.5 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${act.bg} ${act.text} ${act.border}`}>{act.label}</span>
                             </td>
-                            <td className="px-5 py-3.5 min-w-[220px]">
-                              <p className="text-xs text-slate-700">{log.description.split(' | ')[0]}</p>
+                            <td className="px-5 py-3.5 min-w-[260px]">
+                              {/* Same renderer the per-row Activity panel uses, so a
+                                  change reads "Status: Not Posted → Posted" here too
+                                  rather than just naming the fields that moved. */}
+                              {(() => {
+                                const lines = describeChange(log)
+                                const detailed = !!meta.patch
+                                return detailed ? (
+                                  <ul className="space-y-0.5">
+                                    {lines.map((l, i) => (
+                                      <li key={i} className="text-xs text-slate-700 leading-relaxed">{l}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-xs text-slate-700">{lines[0]}</p>
+                                )
+                              })()}
                               {canNavigate && (meta.id || meta.ids?.length > 0) && (
                                 <p className="text-[11px] text-indigo-500 mt-0.5">Click to view →</p>
                               )}

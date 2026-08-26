@@ -26,7 +26,7 @@ const COLS = [
   { key: 'postingDate',   label: 'Date',           width: 95  },
   { key: 'details',       label: 'Details',        width: 80  },
   { key: 'bankAccount',   label: 'Bank Account',   width: 100 },
-  { key: 'description',   label: 'Description',    width: 170 },
+  { key: 'description',   label: 'Description',    width: 140 },
   { key: 'insuranceName', label: 'Insurance Name', width: 125 },
   { key: 'amount',        label: 'Amount',         width: 95  },
   { key: 'fromLocation',  label: 'Received By',    width: 110 },
@@ -36,9 +36,10 @@ const COLS = [
   { key: 'initials',      label: 'Initials',       width: 80  },
   { key: 'notes',         label: 'Notes',          width: 145 },
 ]
-// Fits four icon buttons (~116px) plus px-3 padding. The transfer-complete
-// badge is icon-only (initials live in its tooltip) specifically so it fits here.
-const ACTIONS_WIDTH = 150
+// Fits FIVE icon buttons (~146px incl. gaps) plus px-3 padding: activity,
+// attachment, edit, delete, and either the transfer-complete button or — in the
+// Transfer Complete view — its badge, which is icon-only for exactly this reason.
+const ACTIONS_WIDTH = 180
 const SELECT_WIDTH  = 36
 const COLS_WIDTH    = COLS.reduce((sum, c) => sum + c.width, 0) + ACTIONS_WIDTH
 
@@ -97,7 +98,7 @@ function deriveInitials(profile) {
   return email.slice(0, 2).toUpperCase() || ''
 }
 
-export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSaveFields, onDelete, onDeleteMany, onEditMany, highlightIds, isAllLocations, currentLocation, canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, onSaveSplit, showTransferComplete = false, onTransferComplete, profile, attachmentCounts = {}, onOpenAttachments }) {
+export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSaveFields, onDelete, onDeleteMany, onEditMany, highlightIds, isAllLocations, currentLocation, canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, onSaveSplit, showTransferComplete = false, onTransferComplete, profile, attachmentCounts = {}, onOpenAttachments, onOpenActivity }) {
   const currentUserInitials = deriveInitials(profile)
   const [confirmId,           setConfirmId]           = useState(null)
   const [confirmBulk,         setConfirmBulk]         = useState(false)
@@ -506,6 +507,15 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
                               </span>
+                            )}
+                            {onOpenActivity && (
+                              <button
+                                onClick={(e2) => { e2.stopPropagation(); onOpenActivity(entry) }}
+                                title="Activity — who changed what, and when"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                              </button>
                             )}
                             {/* Attachment button — always visible when files exist, hover otherwise */}
                             {onOpenAttachments && (

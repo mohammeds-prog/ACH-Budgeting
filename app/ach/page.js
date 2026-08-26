@@ -9,10 +9,12 @@ import ACHTable from '@/components/ACHTable'
 import EntryModal from '@/components/EntryModal'
 import { getEntries, saveEntry, deleteEntry, bulkInsertEntries, getUniqueInsurers, saveNotes, markTransferComplete, getAttachmentCounts } from '@/lib/storage'
 import AttachmentsPanel from '@/components/AttachmentsPanel'
+import ActivityPanel from '@/components/ActivityPanel'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import ImportModal, { parseFlexDate, fuzzyLocation, parseAmount } from '@/components/ImportModal'
 import { logActivity } from '@/lib/activityLog'
 import { exportAchToExcel } from '@/lib/exportAch'
+import { diffEntry, ACH_FIELDS } from '@/lib/entryActivity'
 import { extractInsuranceName } from '@/lib/achParser'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
@@ -74,6 +76,7 @@ export default function ACHPage() {
   const [modalEntry, setModalEntry] = useState(null)
   const [importModal, setImportModal] = useState(false)
   const [attachmentsEntry, setAttachmentsEntry] = useState(null)
+  const [activityEntry, setActivityEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
   const [page, setPage] = useState(1)
 
@@ -370,7 +373,9 @@ export default function ACHPage() {
     logActivity({
       action: 'update', module: 'ACH',
       description: `Edited ${Object.keys(patch).join(', ')} — ${entry.description?.slice(0, 40) || 'entry'}`,
-      metadata: { id: entry.id, patch },
+      // `before` lets the activity panel show "Status: Not Posted → Posted"
+      // rather than just "set Status to Posted".
+      metadata: { id: entry.id, patch, before: Object.fromEntries(Object.keys(patch).map((k) => [k, entry[k] ?? null])) },
     })
   }
 
@@ -391,10 +396,20 @@ export default function ACHPage() {
 
   async function handleModalSave(formData) {
     try {
+      const previous = entries.find((e) => e.id === formData.id)
       const saved = await saveEntry({ ...formData, id: formData.id })
       setEntries((prev) => prev.map((e) => e.id === saved.id ? saved : e))
       setModalEntry(null)
-      logActivity({ action: 'update', module: 'ACH', description: `Edited ACH entry — $${Number(formData.amount || 0).toLocaleString()}, ${formData.description || 'No description'}`, metadata: { id: formData.id, amount: formData.amount } })
+      // Record which fields actually changed, so the activity panel can say
+      // "Amount: $100.00 → $253.20" instead of a generic "edited" line.
+      const change = diffEntry(previous, saved, ACH_FIELDS)
+      logActivity({
+        action: 'update', module: 'ACH',
+        description: change
+          ? `Edited ${Object.keys(change.patch).join(', ')}`
+          : 'Saved with no changes',
+        metadata: { id: saved.id, ...(change || {}) },
+      })
     } catch {
       alert('Failed to save. Check your connection.')
     }
@@ -731,6 +746,7 @@ export default function ACHPage() {
                 profile={profile}
                 attachmentCounts={attachmentCounts}
                 onOpenAttachments={setAttachmentsEntry}
+                onOpenActivity={setActivityEntry}
               />
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3 glass-card rounded-2xl">
@@ -790,6 +806,7 @@ export default function ACHPage() {
                   profile={profile}
                   attachmentCounts={attachmentCounts}
                   onOpenAttachments={setAttachmentsEntry}
+                  onOpenActivity={setActivityEntry}
                 />
               )}
               {tcTotalPages > 1 && (
@@ -818,6 +835,13 @@ export default function ACHPage() {
       </div>
       {modal && <EntryModal entry={null} onSave={handleNewEntry} onClose={() => setModal(false)} />}
       {modalEntry && <EntryModal entry={modalEntry} onSave={handleModalSave} onClose={() => setModalEntry(null)} />}
+      {activityEntry && (
+        <ActivityPanel
+          entryId={activityEntry.id}
+          entryLabel={activityEntry.description?.slice(0, 70)}
+          onClose={() => setActivityEntry(null)}
+        />
+      )}
       {attachmentsEntry && (
         <AttachmentsPanel
           entryId={attachmentsEntry.id}

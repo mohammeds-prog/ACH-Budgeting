@@ -168,7 +168,10 @@ export default function ZeroPaymentsPage() {
           eobDate:       it.date,
           location:      it.location || '',
           insuranceName: it.insuranceName || '',
-          match:         '',
+          // An imported row arrives with its EOB attached, so it is matched to
+          // its source document by definition. Status still starts unposted —
+          // that's the part a human has to work.
+          match:         'Yes',
           status:        'Not Posted',
           initials:      '',
           notes:         '',

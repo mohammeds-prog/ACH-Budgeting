@@ -19,16 +19,11 @@ async function getCallerProfile(request) {
     },
   })
 
-  if (!authRes.ok) {
-    const body = await authRes.text()
-    console.log('[getCallerProfile] auth REST failed:', authRes.status, body)
-    return null
-  }
+  if (!authRes.ok) return null
 
   const json = await authRes.json()
-  console.log('[getCallerProfile] auth user id:', json?.id)
   const { id: userId } = json
-  if (!userId) { console.log('[getCallerProfile] no userId'); return null }
+  if (!userId) return null
 
   const { data } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single()
   return data

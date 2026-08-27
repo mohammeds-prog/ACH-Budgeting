@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Fragment } from 'react'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import { CellSelect, CellInput, MatchBadge, StatusBadge, matchTone, statusTone, locationTone, toCents, RowMenu } from './cells'
+import { deriveInitials } from '@/lib/initials'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LAYOUT CONTRACT — read this before changing any width.
@@ -87,18 +88,6 @@ function Checkbox({ checked, indeterminate, onChange, className = '' }) {
   )
 }
 
-function deriveInitials(profile) {
-  const name = (profile?.full_name || '').trim()
-  if (name) {
-    const parts = name.split(/\s+/)
-    return parts.length >= 2
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : name.slice(0, 2).toUpperCase()
-  }
-  const email = (profile?.email || '').split('@')[0]
-  return email.slice(0, 2).toUpperCase() || ''
-}
-
 export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSaveFields, onDelete, onDeleteMany, onEditMany, highlightIds, isAllLocations, currentLocation, canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, onSaveSplit, showTransferComplete = false, onTransferComplete, profile, attachmentCounts = {}, onOpenAttachments, onOpenActivity }) {
   const currentUserInitials = deriveInitials(profile)
   const [confirmId,           setConfirmId]           = useState(null)
@@ -113,11 +102,13 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
   // Commit one or more fields on an entry. Setting a status with no initials
   // yet fills them in from the current user, matching the old modal behaviour.
   async function commitEntry(entry, field, value) {
+    // Nothing actually changed — don't write, don't restamp initials.
+    if (String(entry[field] ?? '') === String(value ?? '')) return
     const patch = { [field]: value }
-    if (field === 'status' && value && value !== 'Not Posted' && !entry.initials?.trim() && currentUserInitials) {
-      patch.initials = currentUserInitials
-    }
-    if (String(entry[field] ?? '') === String(value ?? '') && !patch.initials) return
+    // Any content edit stamps the current editor's initials, so the column
+    // always shows who last touched this row. Editing the Initials field
+    // itself is a manual override and is left exactly as typed.
+    if (field !== 'initials' && currentUserInitials) patch.initials = currentUserInitials
     try { await onSaveFields?.(entry, patch) }
     catch { alert('Failed to save. Check your connection.') }
   }
@@ -133,10 +124,10 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
       notes:    split.notes    || '',
       [field]:  value,
     }
-    if (field === 'status' && value && value !== 'Not Posted' && !split.initials?.trim() && currentUserInitials) {
-      patch.initials = currentUserInitials
-    }
-    if (String(split[field] ?? '') === String(value ?? '') && patch.initials === (split.initials || '')) return
+    if (String(split[field] ?? '') === String(value ?? '')) return
+    // Same rule as the parent row: any split edit stamps the current editor
+    // unless they are typing the initials by hand.
+    if (field !== 'initials' && currentUserInitials) patch.initials = currentUserInitials
     try { await onSaveSplit?.(entry.id, idx, patch) }
     catch { alert('Failed to save. Check your connection.') }
   }
@@ -490,9 +481,10 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
                         <td className="px-4 py-3">
                           <CellInput
                             value={splitTarget ? (entry.splits[activeSplitIdx].notes || '') : (entry.notes || '')}
-                            onCommit={(v) => splitTarget
-                              ? commitSplit(entry, activeSplitIdx, 'notes', v)
-                              : onSaveNotes?.(entry.id, v)}
+                            /* commit() already routes split-vs-parent and stamps the
+                               editor's initials, so a note edit records who touched
+                               the row just like a Match or Status change does. */
+                            onCommit={(v) => commit('notes', v)}
                             placeholder="Add notes…"
                             multiline
                             disabled={!canEditMatch}

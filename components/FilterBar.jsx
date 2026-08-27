@@ -21,7 +21,7 @@ const MATCH_OPTS = [
 ]
 
 export const EMPTY_FILTERS = {
-  month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '',
+  month: '', year: '', from: '', to: '', match: '', status: '', search: '', amount: '', insurance: '',
   initials: '', receivedBy: [], belongsTo: [],
 }
 
@@ -73,6 +73,20 @@ export default function FilterBar({ filters, onChange, uniqueYears, uniqueInsure
         <G label="Insurance"><Select value={filters.insurance} onChange={(v) => set('insurance', v)} placeholder="All" options={insurerOpts} /></G>
         <G label="Status"><Select value={filters.status} onChange={(v) => set('status', v)} placeholder="All statuses" options={statusOpts} /></G>
         <G label="Initials"><Select value={filters.initials} onChange={(v) => set('initials', v)} placeholder="All" options={initialsOpts} /></G>
+        <G label="Amount">
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">$</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={filters.amount}
+              title="Shows every amount that starts with what you type"
+              onChange={(e) => set('amount', e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="e.g. 250"
+              className="pl-6 pr-2.5 py-1.5 w-[130px] text-sm rounded-xl border bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 outline-none tabular-nums transition-all duration-150 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100/50"
+            />
+          </div>
+        </G>
         <G label="Search">
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

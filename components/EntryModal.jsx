@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import { useProfile } from '@/lib/profileContext'
 import { extractInsuranceName } from '@/lib/achParser'
+import { deriveInitials } from '@/lib/initials'
 import Select from './Select'
 import DateInput from './DateInput'
 
@@ -17,18 +18,6 @@ const DETAILS_OPTS  = [{ value: 'CREDIT', label: 'CREDIT' }, { value: 'DEBIT', l
 const MATCH_OPTS    = [{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }, { value: 'Partial', label: 'Partial' }]
 const LOCATION_OPTS = LOCATIONS.map((l) => ({ value: l, label: l }))
 const STATUS_OPTS   = ACH_STATUSES.map((s) => ({ value: s, label: s }))
-
-function deriveInitials(profile) {
-  const name = profile?.full_name?.trim()
-  if (name) {
-    const parts = name.split(/\s+/)
-    return parts.length >= 2
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : parts[0].slice(0, 2).toUpperCase()
-  }
-  const email = profile?.email || ''
-  return email.slice(0, 2).toUpperCase()
-}
 
 // Money as integer cents, so split totals compare exactly.
 function toCents(v) {

@@ -54,14 +54,13 @@ export default function ZeroPaymentsTable({
 }) {
   const [confirmId, setConfirmId] = useState(null)
 
-  // Setting a status with no initials yet fills them in from the current user —
-  // same rule as the ACH table.
+  // Any content edit stamps the current editor's initials — same rule as the
+  // ACH table — so the Initials column always shows who last touched the row.
+  // Typing the initials by hand is a manual override and is left as-is.
   async function commit(entry, field, value) {
+    if (String(entry[field] ?? '') === String(value ?? '')) return
     const patch = { [field]: value }
-    if (field === 'status' && value && value !== 'Not Posted' && !entry.initials?.trim() && currentUserInitials) {
-      patch.initials = currentUserInitials
-    }
-    if (String(entry[field] ?? '') === String(value ?? '') && !patch.initials) return
+    if (field !== 'initials' && currentUserInitials) patch.initials = currentUserInitials
     try { await onSaveFields?.(entry, patch) }
     catch { alert('Failed to save. Check your connection.') }
   }

@@ -19,6 +19,7 @@ import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
 import { exportZeroPaymentsToExcel } from '@/lib/exportZeroPayments'
+import { deriveInitials } from '@/lib/initials'
 
 const ALL = 'all'
 const PAGE_SIZE = 20
@@ -45,11 +46,7 @@ export default function ZeroPaymentsPage() {
   const [activityEntry, setActivityEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
 
-  const currentUserInitials = useMemo(() => {
-    const name = profile?.full_name?.trim()
-    if (!name) return ''
-    return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase()
-  }, [profile])
+  const currentUserInitials = useMemo(() => deriveInitials(profile), [profile])
 
   useEffect(() => {
     getZeroPayments()

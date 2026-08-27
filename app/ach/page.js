@@ -55,6 +55,38 @@ function parseInitialsField(val, statuses) {
   return { status: null, initials: val }
 }
 
+// Free-text search across an entry's visible TEXT fields only. Amount lives in
+// its own filter (matchesAmount) so a stray number in a description can never
+// be mistaken for a dollar figure.
+function matchesSearch(e, raw) {
+  const q = (raw || '').toLowerCase().trim()
+  if (!q) return true
+  const text = `${e.details} ${e.description} ${e.location} ${e.initials} ${e.status}`.toLowerCase()
+  return text.includes(q)
+}
+
+// Dedicated dollar-amount filter. Compares ONLY against the entry amount (and
+// its split amounts) — never the description — so a stray number in a memo can
+// never be mistaken for a dollar figure. Accepts "$1,234.50".
+//
+// It narrows as you type: the typed digits match any amount that STARTS with
+// them, so "25" surfaces 25.00, 250.00 and 253.20, "253" narrows to the 253s,
+// and "253.20" pins the exact one. This lets you find a payment when you only
+// remember roughly what it was.
+function matchesAmount(e, raw) {
+  const num = (raw || '').replace(/[$,\s]/g, '').trim()
+  if (!num) return true
+  if (!/^\d*\.?\d*$/.test(num)) return false
+  const forms = []
+  const push = (v) => {
+    const x = Number(v)
+    if (!Number.isNaN(x) && v != null && v !== '') forms.push(String(x), x.toFixed(2))
+  }
+  push(e.amount)
+  if (Array.isArray(e.splits)) e.splits.forEach((sp) => push(sp.amount))
+  return forms.some((f) => f.startsWith(num))
+}
+
 export default function ACHPage() {
   const profile = useProfile()
   const searchParams  = useSearchParams()
@@ -67,7 +99,7 @@ export default function ACHPage() {
   const [allInsurers, setAllInsurers] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState(ALL)
-  const [filters, setFilters] = useState({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
+  const [filters, setFilters] = useState({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', amount: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
   const [showTCView, setShowTCView] = useState(false)
   const [tcPage, setTcPage] = useState(1)
   const [sortConfig, setSortConfig] = useState({ key: 'postingDate', dir: 'desc' })
@@ -98,7 +130,7 @@ export default function ACHPage() {
   useEffect(() => {
     if (!highlightId || entries.length === 0 || highlightDone.current) return
     highlightDone.current = true
-    setFilters({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
+    setFilters({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', amount: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
     setSelectedLocation(ALL)
     const sorted = [...entries].sort((a, b) => b.postingDate.localeCompare(a.postingDate))
     const idx = sorted.findIndex((e) => e.id === highlightId)
@@ -144,11 +176,8 @@ export default function ACHPage() {
           const splitMatch  = e.splits?.some((s) => filters.belongsTo.includes(s.location))
           if (!directMatch && !splitMatch) return false
         }
-        if (filters.search) {
-          const q = filters.search.toLowerCase()
-          const hay = `${e.details} ${e.description} ${e.location} ${e.initials} ${e.status}`.toLowerCase()
-          if (!hay.includes(q)) return false
-        }
+        if (!matchesSearch(e, filters.search)) return false
+        if (!matchesAmount(e, filters.amount)) return false
         return true
       })
       .sort((a, b) => {
@@ -190,11 +219,8 @@ export default function ACHPage() {
           if (own !== filters.initials && !inSplits) return false
         }
         if (filters.insurance && e.insuranceName !== filters.insurance) return false
-        if (filters.search) {
-          const q = filters.search.toLowerCase()
-          const hay = `${e.details} ${e.description} ${e.location} ${e.initials} ${e.status}`.toLowerCase()
-          if (!hay.includes(q)) return false
-        }
+        if (!matchesSearch(e, filters.search)) return false
+        if (!matchesAmount(e, filters.amount)) return false
         return true
       })
       .sort((a, b) => {
@@ -265,14 +291,11 @@ export default function ACHPage() {
         if (own !== filters.initials && !inSplits) return false
       }
       if (filters.insurance && e.insuranceName !== filters.insurance) return false
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        const hay = `${e.details} ${e.description} ${e.location} ${e.initials} ${e.status}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
+      if (!matchesSearch(e, filters.search)) return false
+      if (!matchesAmount(e, filters.amount)) return false
       return true
     })
-  }, [entries, selectedLocation, filters.month, filters.year, filters.from, filters.to, filters.status, filters.search, filters.insurance, filters.receivedBy, filters.belongsTo])
+  }, [entries, selectedLocation, filters.month, filters.year, filters.from, filters.to, filters.status, filters.search, filters.amount, filters.insurance, filters.receivedBy, filters.belongsTo])
 
   // For a specific location tab, only count amounts that *belong to* this location (not just received by it)
   function allocatedAmount(e) {

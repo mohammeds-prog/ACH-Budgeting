@@ -87,6 +87,32 @@ function matchesAmount(e, raw) {
   return forms.some((f) => f.startsWith(num))
 }
 
+// One pagination bar, rendered both above and below the table so pages can be
+// changed without scrolling to the bottom. Kept as a single component so the
+// top and bottom copies can never drift apart.
+function Pager({ page, totalPages, pageSize, total, onChange }) {
+  if (totalPages <= 1) return null
+  const btn = 'flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed'
+  return (
+    <div className="flex items-center justify-between px-5 py-3 glass-card rounded-2xl">
+      <span className="text-xs text-slate-500">
+        {((page - 1) * pageSize + 1).toLocaleString()}–{Math.min(page * pageSize, total).toLocaleString()} of {total.toLocaleString()} entries
+      </span>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onChange(page - 1)} disabled={page === 1} className={btn}>
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+          Prev
+        </button>
+        <span className="px-3 text-xs text-slate-500 tabular-nums">Page {page} of {totalPages}</span>
+        <button onClick={() => onChange(page + 1)} disabled={page === totalPages} className={btn}>
+          Next
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ACHPage() {
   const profile = useProfile()
   const searchParams  = useSearchParams()
@@ -111,6 +137,7 @@ export default function ACHPage() {
   const [activityEntry, setActivityEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
   const [page, setPage] = useState(1)
+  const tableTopRef = useRef(null)
 
   useEffect(() => { setPage(1); setTcPage(1) }, [filters, sortConfig, selectedLocation])
 
@@ -234,6 +261,8 @@ export default function ACHPage() {
   }, [entries, filters, sortConfig, selectedLocation])
 
   const PAGE_SIZE = 20
+  const goToPage = (p) => { setPage(p); tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  const goToTcPage = (p) => { setTcPage(p); tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const tcTotalPages = Math.max(1, Math.ceil(tcFiltered.length / PAGE_SIZE))
@@ -745,6 +774,8 @@ export default function ACHPage() {
             </div>
           ) : !showTCView ? (
             <>
+              <div ref={tableTopRef} className="scroll-mt-4" />
+              <Pager page={page} totalPages={totalPages} pageSize={PAGE_SIZE} total={filtered.length} onChange={goToPage} />
               <ACHTable
                 entries={paged}
                 sortConfig={sortConfig}
@@ -771,29 +802,12 @@ export default function ACHPage() {
                 onOpenAttachments={setAttachmentsEntry}
                 onOpenActivity={setActivityEntry}
               />
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 glass-card rounded-2xl">
-                  <span className="text-xs text-slate-500">
-                    {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(page * PAGE_SIZE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} entries
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setPage((p) => p - 1)} disabled={page === 1}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
-                      Prev
-                    </button>
-                    <span className="px-3 text-xs text-slate-500 tabular-nums">Page {page} of {totalPages}</span>
-                    <button onClick={() => setPage((p) => p + 1)} disabled={page === totalPages}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
-                      Next
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
-                    </button>
-                  </div>
-                </div>
-              )}
+              <Pager page={page} totalPages={totalPages} pageSize={PAGE_SIZE} total={filtered.length} onChange={goToPage} />
             </>
           ) : (
             <>
+              <div ref={tableTopRef} className="scroll-mt-4" />
+              <Pager page={tcPage} totalPages={tcTotalPages} pageSize={PAGE_SIZE} total={tcFiltered.length} onChange={goToTcPage} />
               {tcFiltered.length === 0 ? (
                 <div className="glass-card rounded-2xl flex items-center justify-center py-24">
                   <div className="flex flex-col items-center gap-3 text-center">
@@ -832,26 +846,7 @@ export default function ACHPage() {
                   onOpenActivity={setActivityEntry}
                 />
               )}
-              {tcTotalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 glass-card rounded-2xl">
-                  <span className="text-xs text-slate-500">
-                    {((tcPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(tcPage * PAGE_SIZE, tcFiltered.length).toLocaleString()} of {tcFiltered.length.toLocaleString()} entries
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setTcPage((p) => p - 1)} disabled={tcPage === 1}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
-                      Prev
-                    </button>
-                    <span className="px-3 text-xs text-slate-500 tabular-nums">Page {tcPage} of {tcTotalPages}</span>
-                    <button onClick={() => setTcPage((p) => p + 1)} disabled={tcPage === tcTotalPages}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed">
-                      Next
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
-                    </button>
-                  </div>
-                </div>
-              )}
+              <Pager page={tcPage} totalPages={tcTotalPages} pageSize={PAGE_SIZE} total={tcFiltered.length} onChange={goToTcPage} />
             </>
           )}
         </div>

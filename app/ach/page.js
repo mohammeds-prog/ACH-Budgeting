@@ -137,7 +137,6 @@ export default function ACHPage() {
   const [activityEntry, setActivityEntry] = useState(null)
   const [attachmentCounts, setAttachmentCounts] = useState({})
   const [page, setPage] = useState(1)
-  const tableTopRef = useRef(null)
 
   useEffect(() => { setPage(1); setTcPage(1) }, [filters, sortConfig, selectedLocation])
 
@@ -261,8 +260,10 @@ export default function ACHPage() {
   }, [entries, filters, sortConfig, selectedLocation])
 
   const PAGE_SIZE = 20
-  const goToPage = (p) => { setPage(p); tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-  const goToTcPage = (p) => { setTcPage(p); tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  // No auto-scroll on page change — the top pager means the controls are already
+  // in view, and yanking the scroll position was jarring.
+  const goToPage = setPage
+  const goToTcPage = setTcPage
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const tcTotalPages = Math.max(1, Math.ceil(tcFiltered.length / PAGE_SIZE))
@@ -774,7 +775,6 @@ export default function ACHPage() {
             </div>
           ) : !showTCView ? (
             <>
-              <div ref={tableTopRef} className="scroll-mt-4" />
               <Pager page={page} totalPages={totalPages} pageSize={PAGE_SIZE} total={filtered.length} onChange={goToPage} />
               <ACHTable
                 entries={paged}
@@ -806,7 +806,6 @@ export default function ACHPage() {
             </>
           ) : (
             <>
-              <div ref={tableTopRef} className="scroll-mt-4" />
               <Pager page={tcPage} totalPages={tcTotalPages} pageSize={PAGE_SIZE} total={tcFiltered.length} onChange={goToTcPage} />
               {tcFiltered.length === 0 ? (
                 <div className="glass-card rounded-2xl flex items-center justify-center py-24">

@@ -53,8 +53,15 @@ export default function ZeroPaymentsPage() {
       .then(setEntries)
       .catch(() => setLoadError('Could not load zero payments. Check your connection and refresh.'))
       .finally(() => setLoading(false))
-    getAttachmentCounts('zero').then(setAttachmentCounts).catch(() => {})
   }, [])
+
+  // Badge counts stay in sync with the database (EOB bulk import adds files),
+  // rather than a single mount-time snapshot that would go stale.
+  useEffect(() => {
+    getAttachmentCounts('zero')
+      .then(setAttachmentCounts)
+      .catch((e) => console.warn('Failed to load attachment counts:', e))
+  }, [entries.length])
 
   useEffect(() => { setPage(1) }, [filters, sortConfig, selectedLocation])
 

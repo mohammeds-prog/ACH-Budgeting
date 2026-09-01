@@ -148,10 +148,17 @@ export default function ACHPage() {
     getUniqueInsurers()
       .then(setAllInsurers)
       .catch((e) => console.error('Failed to load insurers:', e))
+  }, [])
+
+  // Attachment badge counts, kept in sync with the database rather than fetched
+  // once. Re-running when the entry set changes means a file added by an import
+  // or in another session shows its count without a manual refresh — a single
+  // mount-time snapshot would silently go stale (and did).
+  useEffect(() => {
     getAttachmentCounts()
       .then(setAttachmentCounts)
-      .catch(() => {})
-  }, [])
+      .catch((e) => console.warn('Failed to load attachment counts:', e))
+  }, [entries.length])
 
   useEffect(() => {
     if (!highlightId || entries.length === 0 || highlightDone.current) return

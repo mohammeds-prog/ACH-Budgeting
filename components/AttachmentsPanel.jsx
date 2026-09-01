@@ -57,7 +57,13 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
   useEffect(() => {
     if (!entryId) return
     getAttachments(entryId, kind)
-      .then(setFiles)
+      .then((data) => {
+        setFiles(data)
+        // Reconcile the row's badge with what's really attached. The page's
+        // count map is only a snapshot from load, so files added by the EOB
+        // bulk import or in another session wouldn't otherwise show a count.
+        onCountChange?.(entryId, data.length)
+      })
       .catch(() => setError('Failed to load attachments.'))
       .finally(() => setLoading(false))
   }, [entryId, kind])
@@ -79,9 +85,10 @@ export default function AttachmentsPanel({ entryId, entryDescription, onClose, u
       for (const f of list) {
         const uploaded = await uploadAttachment(entryId, f, uploaderEmail, kind)
         added.push(uploaded)
-        setFiles((prev) => [...prev, uploaded])
       }
-      onCountChange?.(entryId, files.length + added.length)
+      const merged = [...files, ...added]
+      setFiles(merged)
+      onCountChange?.(entryId, merged.length)
     } catch {
       setError('Upload failed. Check your connection and try again.')
     } finally {

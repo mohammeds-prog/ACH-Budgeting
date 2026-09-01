@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useProfile } from '@/lib/profileContext'
 import { logActivity } from '@/lib/activityLog'
 import { ROLES, getRoleInfo } from '@/lib/permissions'
+import { fetchAllRows } from '@/lib/fetchAll'
 
 function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) {
   const [open, setOpen] = useState(false)
@@ -331,7 +332,13 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false)
 
   async function load() {
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: true })
+    // Paginated: a bare select silently stops at 1000 rows, which would hide
+    // users from the admin list with no error. See lib/fetchAll.js.
+    const data = await fetchAllRows(() =>
+      supabase.from('profiles').select('*')
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+    ).catch(() => [])
     setProfiles(data || [])
     setLoading(false)
   }

@@ -113,6 +113,33 @@ function Pager({ page, totalPages, pageSize, total, onChange }) {
   )
 }
 
+// ── Chase statement import rules ────────────────────────────────────────────
+// Encodes the clean-up that used to be done by hand in Excel before importing.
+//
+// Payers whose deposits are not insurance payments and never get tracked here.
+// Matched against the DESCRIPTION only: a posting date like 05/30/2026 contains
+// the literal "5/3", so matching the whole row would drop real payments.
+// "5/3" is anchored on word boundaries for the same reason.
+const ACH_EXCLUDE_RULES = [
+  { label: '5/3 Bankcard', re: /\b5\/3\b/ },
+  { label: 'Synchrony',    re: /synchrony/i },
+  { label: 'Cherry',       re: /cherry/i },
+]
+
+// Chase names its exports "Chase8209_Activity_20260901.csv" — the digits after
+// "Chase" are the account the statement belongs to, and the export itself has
+// no bank-account column.
+function achDeriveFromFileName(fileName) {
+  const m = /chase[^0-9]*(\d{4,})/i.exec(fileName || '')
+  return m ? { bankAccount: m[1] } : {}
+}
+
+function achExcludeRow(entry) {
+  const desc = entry?.description || ''
+  const hit = ACH_EXCLUDE_RULES.find((r) => r.re.test(desc))
+  return hit ? `${hit.label} — not an insurance payment` : null
+}
+
 export default function ACHPage() {
   const profile = useProfile()
   const searchParams  = useSearchParams()
@@ -884,6 +911,8 @@ export default function ACHPage() {
               : 'Paste or upload a CSV — column names must match the header row below'
           }
           locationOptions={LOCATIONS}
+          deriveFromFileName={achDeriveFromFileName}
+          excludeRow={achExcludeRow}
           columns={[
             { key: 'postingDate', label: 'postingDate', required: true, example: '01/15/2025',
               aliases: ['postingdate', 'posting_date', 'date', 'transactiondate', 'txndate', 'postdate', 'valuedate', 'settledate', 'settlementdate', 'entrydate', 'effectivedate', 'dateposted', 'tdate'],

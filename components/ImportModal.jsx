@@ -118,13 +118,28 @@ function normalizeHeader(s) {
   return s.toLowerCase().replace(/[\s_\-\.]/g, '')
 }
 
+// Clickable summary chip — doubles as the preview filter.
+function Chip({ active, onClick, dot, tone, ring, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 text-xs transition-all ${tone} ${active ? `ring-2 ${ring}` : 'hover:brightness-95'}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {children}
+    </button>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────
-export default function ImportModal({ title, subtitle, columns, onImport, onClose, locationOptions, postProcess }) {
+export default function ImportModal({ title, subtitle, columns, onImport, onClose, locationOptions, postProcess, deriveFromFileName, excludeRow }) {
   const [raw, setRaw] = useState('')
+  const [fileName, setFileName] = useState('')
   const [parsed, setParsed] = useState(null) // { headers, rows, mapped, issues }
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState(null) // { imported, skipped, errors }
   const [dragOver, setDragOver] = useState(false)
+  const [previewFilter, setPreviewFilter] = useState('all')  // all | valid | skipped | invalid
   const fileRef = useRef()
 
   const requiredCols = columns.filter((c) => c.required).map((c) => c.key)
@@ -132,8 +147,9 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
   const headerRow = columns.map((c) => c.key).join(',')
   const templateText = `${headerRow}\n${exampleRow}`
 
-  function processRaw(text) {
+  function processRaw(text, name = '') {
     setRaw(text)
+    setFileName(name)
     setResult(null)
     if (!text.trim()) { setParsed(null); return }
 
@@ -168,6 +184,10 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
     const missingRequired = requiredCols.filter((k) => !colMap[k])
 
+    // Values inferred from the file name (e.g. the account number in
+    // "Chase8209_Activity_20260901.csv") fill columns the export doesn't carry.
+    const derived = (deriveFromFileName ? deriveFromFileName(name) : null) || {}
+
     const mapped = rows.map((rawRow, idx) => {
       const entry = {}
       const rowErrors = []
@@ -178,7 +198,7 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
         const val = rawVal.trim()
 
         // use defaultValue when CSV doesn't have this column and a default is configured
-        const effectiveVal = val || (col.defaultValue ?? '')
+        const effectiveVal = val || derived[col.key] || (col.defaultValue ?? '')
 
         if (col.required && !effectiveVal) {
           rowErrors.push(`"${col.key}" is required`)
@@ -196,7 +216,11 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
 
       if (postProcess) postProcess(entry, rawRow, colMap)
 
-      return { entry, errors: rowErrors, rowNum: idx + 2 }
+      // Excluded rows are kept and reported rather than dropped in silence —
+      // this is money, so the user must see what did not get imported.
+      const excluded = excludeRow ? (excludeRow(entry, rawRow) || null) : null
+
+      return { entry, errors: rowErrors, excluded, rowNum: idx + 2 }
     })
 
     setParsed({ headers, colMap, missingRequired, mapped })
@@ -212,11 +236,11 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
       reader.onload = (e) => {
         const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' })
         const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]])
-        processRaw(csv)
+        processRaw(csv, file.name)
       }
       reader.readAsArrayBuffer(file)
     } else {
-      reader.onload = (e) => processRaw(e.target.result)
+      reader.onload = (e) => processRaw(e.target.result, file.name)
       reader.readAsText(file)
     }
   }
@@ -230,8 +254,9 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
     }
   }
 
-  const validRows = parsed?.mapped.filter((r) => r.errors.length === 0) ?? []
-  const invalidRows = parsed?.mapped.filter((r) => r.errors.length > 0) ?? []
+  const excludedRows = parsed?.mapped.filter((r) => r.excluded) ?? []
+  const validRows = parsed?.mapped.filter((r) => r.errors.length === 0 && !r.excluded) ?? []
+  const invalidRows = parsed?.mapped.filter((r) => r.errors.length > 0 && !r.excluded) ?? []
 
   async function handleImport() {
     if (!validRows.length) return
@@ -250,7 +275,14 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
     navigator.clipboard.writeText(templateText)
   }
 
-  const previewRows = parsed?.mapped.slice(0, 8) ?? []
+  // The preview follows whichever chip is selected, so "7 skipped" can be
+  // clicked to see exactly which rows those are.
+  const previewSource =
+    previewFilter === 'valid'   ? validRows
+  : previewFilter === 'skipped' ? excludedRows
+  : previewFilter === 'invalid' ? invalidRows
+  : (parsed?.mapped ?? [])
+  const previewRows = previewSource.slice(0, 8)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -376,30 +408,71 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                     </div>
                   )}
 
+                  {/* What the file name told us — the user should see an
+                      auto-filled value, not discover it after importing. */}
+                  {fileName && Object.keys((deriveFromFileName && deriveFromFileName(fileName)) || {}).length > 0 && (
+                    <div className="mb-3 bg-indigo-500/[0.06] border border-indigo-500/20 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-indigo-600">Auto-filled from the file name</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        <span className="font-mono">{fileName}</span> →{' '}
+                        {Object.entries(deriveFromFileName(fileName))
+                          .map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Excluded rows — shown, never dropped quietly. */}
+                  {excludedRows.length > 0 && (
+                    <div className="mb-3 bg-amber-500/[0.08] border border-amber-500/25 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-amber-700">
+                        {excludedRows.length} row{excludedRows.length !== 1 ? 's' : ''} will be skipped
+                      </p>
+                      <ul className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                        {excludedRows.slice(0, 8).map((r) => (
+                          <li key={r.rowNum} className="text-[11px] text-amber-700/80">
+                            Row {r.rowNum} — {r.excluded}
+                          </li>
+                        ))}
+                      </ul>
+                      {excludedRows.length > 8 && (
+                        <p className="text-[11px] text-amber-700/60 mt-1">…and {excludedRows.length - 8} more</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Stats row */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                      <span className="text-xs text-slate-500">{parsed.mapped.length} rows detected</span>
-                    </div>
+                    <Chip active={previewFilter === 'all'} onClick={() => setPreviewFilter('all')}
+                      dot="bg-slate-400" tone="bg-white border-slate-200 text-slate-500" ring="ring-slate-300">
+                      {parsed.mapped.length} rows detected
+                    </Chip>
                     {validRows.length > 0 && (
-                      <div className="flex items-center gap-1.5 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-lg px-2.5 py-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        <span className="text-xs text-emerald-400">{validRows.length} valid</span>
-                      </div>
+                      <Chip active={previewFilter === 'valid'} onClick={() => setPreviewFilter('valid')}
+                        dot="bg-emerald-400" tone="bg-emerald-500/[0.08] border-emerald-500/20 text-emerald-600" ring="ring-emerald-400">
+                        {validRows.length} valid
+                      </Chip>
+                    )}
+                    {excludedRows.length > 0 && (
+                      <Chip active={previewFilter === 'skipped'} onClick={() => setPreviewFilter('skipped')}
+                        dot="bg-amber-400" tone="bg-amber-500/[0.08] border-amber-500/25 text-amber-600" ring="ring-amber-400">
+                        {excludedRows.length} skipped
+                      </Chip>
                     )}
                     {invalidRows.length > 0 && (
-                      <div className="flex items-center gap-1.5 bg-red-500/[0.08] border border-red-500/20 rounded-lg px-2.5 py-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                        <span className="text-xs text-red-400">{invalidRows.length} will be skipped</span>
-                      </div>
+                      <Chip active={previewFilter === 'invalid'} onClick={() => setPreviewFilter('invalid')}
+                        dot="bg-red-400" tone="bg-red-500/[0.08] border-red-500/20 text-red-500" ring="ring-red-400">
+                        {invalidRows.length} has errors
+                      </Chip>
                     )}
                   </div>
 
                   {/* Preview table */}
                   <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto">
                     <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Preview {previewRows.length < parsed.mapped.length ? `(first ${previewRows.length} of ${parsed.mapped.length})` : ''}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        {previewFilter === 'all' ? 'Preview' : `Preview — ${previewFilter}`}
+                        {previewRows.length < previewSource.length ? ` (first ${previewRows.length} of ${previewSource.length})` : ''}
+                      </p>
                     </div>
                     <table className="w-full text-xs border-collapse">
                       <thead>
@@ -420,8 +493,9 @@ export default function ImportModal({ title, subtitle, columns, onImport, onClos
                         </tr>
                       </thead>
                       <tbody>
-                        {previewRows.map(({ entry, errors, rowNum }) => (
-                          <tr key={rowNum} className={`border-b border-slate-100 last:border-0 ${errors.length ? 'bg-red-50' : ''}`}>
+                        {previewRows.map(({ entry, errors, rowNum, excluded }) => (
+                          <tr key={rowNum} title={excluded || undefined}
+                            className={`border-b border-slate-100 last:border-0 ${errors.length ? 'bg-red-50' : excluded ? 'bg-amber-50 text-slate-400' : ''}`}>
                             <td className="px-3 py-2 text-slate-400 tabular-nums">{rowNum}</td>
                             {columns.map((c) => {
                               const isAutoFilled = !parsed.colMap[c.key] && c.defaultValue != null && entry[c.key] != null

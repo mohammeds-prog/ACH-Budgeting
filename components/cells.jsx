@@ -36,33 +36,118 @@ export function locationTone(v) {
 }
 
 // A dropdown that looks like a badge. Saves on selection — no confirm step.
+// A dropdown styled as a compact status badge.
+//
+// This is deliberately NOT a native <select>. A browser renders a select's open
+// list with OS chrome — system font, square corners, a hard blue highlight —
+// and no CSS can reach inside it, so every in-table dropdown looked foreign to
+// the rest of the app. The list is rendered here instead, matching Select.jsx.
+//
+// Positioned `fixed` from a measured rect: the table wrapper has
+// overflow-x-auto, which clips absolutely-positioned children. Flips above the
+// trigger when there isn't room below.
 export function CellSelect({ value, options, onChange, tone = TONE_NEUTRAL, disabled, title }) {
+  const [rect, setRect] = useState(null)
+  const btnRef  = useRef(null)
+  const listRef = useRef(null)
+
+  const selected = options.find((o) => o.value === (value || ''))
+
+  useEffect(() => {
+    if (!rect) return
+    const close = (e) => {
+      if (btnRef.current?.contains(e.target) || listRef.current?.contains(e.target)) return
+      setRect(null)
+    }
+    const esc = (e) => { if (e.key === 'Escape') setRect(null) }
+    const dismiss = () => setRect(null)
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    // A list pinned to a measured rect goes stale the moment anything scrolls.
+    window.addEventListener('scroll', dismiss, true)
+    window.addEventListener('resize', dismiss)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', esc)
+      window.removeEventListener('scroll', dismiss, true)
+      window.removeEventListener('resize', dismiss)
+    }
+  }, [rect])
+
   if (disabled) {
-    const label = options.find((o) => o.value === (value || ''))?.label
-    return <span className="text-slate-400 text-xs px-1">{label || '—'}</span>
+    return <span className="text-slate-400 text-xs px-1">{selected?.label || '—'}</span>
   }
+
+  function toggle() {
+    if (rect) { setRect(null); return }
+    const r = btnRef.current.getBoundingClientRect()
+    const height = Math.min(options.length * 32 + 8, 216)
+    const below = window.innerHeight - r.bottom - 8
+    setRect({
+      width: r.width,
+      left: Math.min(r.left, window.innerWidth - Math.max(r.width, 150) - 12),
+      top:    below < height ? undefined : r.bottom + 6,
+      bottom: below < height ? window.innerHeight - r.top + 6 : undefined,
+    })
+  }
+
   return (
-    <div className="relative" title={title}>
-      <select
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full appearance-none cursor-pointer rounded-lg border pl-2 pr-5 py-1 text-[11px] font-semibold outline-none transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 ${tone}`}
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        title={title}
+        onClick={(e) => { e.stopPropagation(); toggle() }}
+        aria-haspopup="listbox"
+        aria-expanded={!!rect}
+        className={`flex w-full items-center gap-1 cursor-pointer rounded-lg border pl-2 pr-1.5 py-1 text-[11px] font-semibold outline-none transition-colors ${tone} ${rect ? 'ring-2 ring-indigo-100 border-indigo-400' : ''}`}
       >
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-      <svg
-        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 opacity-40"
-        fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7"/>
-      </svg>
-    </div>
+        <span className="flex-1 truncate text-left">{selected?.label ?? '—'}</span>
+        <svg
+          className={`w-2.5 h-2.5 shrink-0 opacity-40 transition-transform duration-150 ${rect ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7"/>
+        </svg>
+      </button>
+
+      {rect && (
+        <div
+          ref={listRef}
+          role="listbox"
+          style={{
+            position: 'fixed',
+            top: rect.top, bottom: rect.bottom, left: rect.left,
+            minWidth: Math.max(rect.width, 150),
+            zIndex: 9999,
+            boxShadow: '0 8px 24px rgba(148,163,184,0.25)',
+          }}
+          className="bg-white border border-slate-200 rounded-xl overflow-hidden"
+        >
+          <div className="py-1 max-h-52 overflow-y-auto">
+            {options.map((o) => (
+              <div
+                key={o.value}
+                role="option"
+                aria-selected={value === o.value}
+                onMouseDown={(e) => { e.preventDefault(); onChange(o.value); setRect(null) }}
+                className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
+                  value === o.value ? 'text-indigo-700 bg-indigo-50 font-semibold' : 'text-slate-700 hover:bg-violet-50'
+                }`}
+              >
+                {o.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
 // A text input that stays quiet until hovered or focused. Commits on Enter or
 // blur; Escape reverts. Used for Initials and Notes.
-export function CellInput({ value, onCommit, placeholder, maxLength, multiline, disabled, title }) {
+export function CellInput({ value, onCommit, placeholder, maxLength, multiline, disabled, title, align = 'left' }) {
   const [draft, setDraft] = useState(value ?? '')
   const [focused, setFocused] = useState(false)
   const [peek, setPeek] = useState(null)   // { top, left, width } while hovering a clipped note
@@ -91,7 +176,7 @@ export function CellInput({ value, onCommit, placeholder, maxLength, multiline, 
   const closePeek = () => setPeek(null)
 
   if (disabled) {
-    return <span className="text-slate-400 text-xs px-1" title={value || undefined}>{value || '—'}</span>
+    return <span className={`text-slate-400 text-xs px-1 ${align === 'right' ? 'block text-right tabular-nums' : ''}`} title={value || undefined}>{value || '—'}</span>
   }
 
   // A multi-row textarea is taller than the single-line controls beside it, and
@@ -125,7 +210,7 @@ export function CellInput({ value, onCommit, placeholder, maxLength, multiline, 
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.blur() }
       if (e.key === 'Escape') { escaped.current = true; e.currentTarget.blur() }
     },
-    className: 'w-full rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-xs text-slate-700 placeholder:text-slate-300 outline-none transition-colors hover:border-slate-200 hover:bg-white focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100',
+    className: `w-full rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-xs text-slate-700 placeholder:text-slate-300 outline-none transition-colors hover:border-slate-200 hover:bg-white focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100${align === 'right' ? ' text-right tabular-nums' : ''}`,
   }
 
   if (!multiline) return <input type="text" {...common} />

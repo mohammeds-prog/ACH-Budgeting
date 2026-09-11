@@ -117,7 +117,10 @@ function Toggle({ checked, onChange, color = 'violet', disabled = false }) {
   // 'bg-indigo-6000' used to be here — not a real Tailwind class (indigo stops
   // at 950), so it compiled to nothing and the violet toggle's ON state had no
   // track colour at all, leaving it invisible against the page background.
-  const on = color === 'indigo' ? 'bg-indigo-500' : 'bg-violet-500'
+  // Explicit map, not a ternary chain: an unknown colour must be obvious rather
+  // than silently rendering as violet.
+  const ON_COLORS = { indigo: 'bg-indigo-500', violet: 'bg-violet-500', teal: 'bg-teal-500' }
+  const on = ON_COLORS[color] || ON_COLORS.violet
   return (
     <button
       onClick={() => !disabled && onChange(!checked)}
@@ -211,7 +214,7 @@ function SetPasswordModal({ user, onClose }) {
 }
 
 function AddUserModal({ onClose, onCreated, isManagement = false }) {
-  const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'viewer' })
+  const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'viewer', can_view_ach: true, can_view_budgeting: true, can_view_hygiene: false })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [showPw, setShowPw] = useState(false)
@@ -228,7 +231,10 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ email: form.email, full_name: form.full_name, password: form.password, role: form.role }),
+        body: JSON.stringify({
+          email: form.email, full_name: form.full_name, password: form.password, role: form.role,
+          can_view_ach: form.can_view_ach, can_view_budgeting: form.can_view_budgeting, can_view_hygiene: form.can_view_hygiene,
+        }),
       })
       const json = await res.json()
       if (!res.ok) { setError(json.error); return }
@@ -305,6 +311,53 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
             })()}
           </div>
 
+          {/* Module access, set right here instead of only afterwards from the
+              row toggles — so a new user is created already scoped to the
+              right modules. Same three toggles as the user list below, same
+              colours, same "admin/management always have it" rule: those
+              roles show the switch on and locked, since role alone already
+              grants full access (see isAllowed in providers.jsx). */}
+          {(() => {
+            const roleGrantsAll = form.role === 'admin' || form.role === 'management'
+            return (
+              <div>
+                <label className={labelCls}>Module access</label>
+                <div className="flex flex-wrap gap-x-5 gap-y-2 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Toggle
+                      checked={roleGrantsAll || form.can_view_ach}
+                      onChange={(v) => set('can_view_ach', v)}
+                      color="indigo"
+                      disabled={roleGrantsAll}
+                    />
+                    <span className={`text-xs ${roleGrantsAll || form.can_view_ach ? 'text-indigo-700' : 'text-slate-500'}`}>ACH</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Toggle
+                      checked={roleGrantsAll || form.can_view_budgeting}
+                      onChange={(v) => set('can_view_budgeting', v)}
+                      color="violet"
+                      disabled={roleGrantsAll}
+                    />
+                    <span className={`text-xs ${roleGrantsAll || form.can_view_budgeting ? 'text-violet-700' : 'text-slate-500'}`}>Supply Budget</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Toggle
+                      checked={roleGrantsAll || form.can_view_hygiene}
+                      onChange={(v) => set('can_view_hygiene', v)}
+                      color="teal"
+                      disabled={roleGrantsAll}
+                    />
+                    <span className={`text-xs ${roleGrantsAll || form.can_view_hygiene ? 'text-teal-700' : 'text-slate-500'}`}>Hygiene</span>
+                  </label>
+                </div>
+                {roleGrantsAll && (
+                  <p className="text-[11px] text-slate-400 mt-1.5">{getRoleInfo(form.role).label} always has access to every module.</p>
+                )}
+              </div>
+            )
+          })()}
+
           {error && <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
 
           <div className="flex gap-2 justify-end pt-1">
@@ -363,6 +416,7 @@ export default function AdminPage() {
     if ('role' in updates) logActivity({ action: 'update', module: 'Admin', description: `Changed ${name}'s role to ${updates.role}`, metadata: { userId: id, role: updates.role } })
     if ('can_view_ach' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_ach ? 'Enabled' : 'Disabled'} ACH access for ${name}`, metadata: { userId: id, can_view_ach: updates.can_view_ach } })
     if ('can_view_budgeting' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_budgeting ? 'Enabled' : 'Disabled'} Budget access for ${name}`, metadata: { userId: id, can_view_budgeting: updates.can_view_budgeting } })
+    if ('can_view_hygiene' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_hygiene ? 'Enabled' : 'Disabled'} Hygiene access for ${name}`, metadata: { userId: id, can_view_hygiene: updates.can_view_hygiene } })
   }
 
   async function handleDelete(userId) {
@@ -480,6 +534,15 @@ export default function AdminPage() {
                                   disabled={(!isAdmin && !isManagement) || p.role === 'admin' || p.role === 'management'}
                                 />
                                 <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_budgeting ? 'text-violet-700' : 'text-slate-500'}`}>Supply Budget</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Toggle
+                                  checked={p.role === 'admin' || p.role === 'management' || !!p.can_view_hygiene}
+                                  onChange={(v) => updateProfile(p.id, { can_view_hygiene: v })}
+                                  color="teal"
+                                  disabled={(!isAdmin && !isManagement) || p.role === 'admin' || p.role === 'management'}
+                                />
+                                <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_hygiene ? 'text-teal-700' : 'text-slate-500'}`}>Hygiene</span>
                               </label>
                             </div>
                           </td>

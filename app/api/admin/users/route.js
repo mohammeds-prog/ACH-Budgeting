@@ -42,7 +42,7 @@ export async function POST(request) {
   }
 
   const VALID_ROLES = ['admin', 'management', 'user', 'viewer']
-  const { email, full_name, password, role } = await request.json()
+  const { email, full_name, password, role, can_view_ach, can_view_budgeting, can_view_hygiene } = await request.json()
   if (!email || !password) {
     return NextResponse.json({ error: 'email and password are required' }, { status: 400 })
   }
@@ -66,6 +66,12 @@ export async function POST(request) {
     email,
     full_name: full_name || null,
     role: VALID_ROLES.includes(role) ? role : 'viewer',
+    // Module access set at creation time, not just afterwards from the row
+    // toggles — admin/management ignore these (they always have access; see
+    // isAllowed in providers.jsx and the "alwaysOn" checks in app/page.js).
+    can_view_ach:        !!can_view_ach,
+    can_view_budgeting:  !!can_view_budgeting,
+    can_view_hygiene:    !!can_view_hygiene,
   })
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
@@ -97,7 +103,7 @@ export async function PUT(request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const VALID_KEYS = ['role', 'can_view_ach', 'can_view_budgeting']
+  const VALID_KEYS = ['role', 'can_view_ach', 'can_view_budgeting', 'can_view_hygiene']
   const safeUpdates = Object.fromEntries(Object.entries(updates).filter(([k]) => VALID_KEYS.includes(k)))
   if (Object.keys(safeUpdates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })

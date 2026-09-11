@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { HYGIENE_LOCATIONS, HYGIENE_HOURS, DAY_LABELS, shortLocation } from '@/lib/constants'
+import { HYGIENE_LOCATIONS, DAY_LABELS, shortLocation } from '@/lib/constants'
 import { CellSelect, CellInput, locationTone } from './cells'
 import DateInput from './DateInput'
+import TimeRangeField from './TimeRangeField'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LAYOUT CONTRACT — read this before changing any width.
@@ -43,7 +44,6 @@ const ACTIONS_WIDTH = 90
 // Figures are right-aligned so a column of them can be compared digit by digit.
 const NUMERIC_COLS = new Set(['available', 'utilized'])
 
-const HOURS_OPTIONS = HYGIENE_HOURS.map((h) => ({ value: h, label: h }))
 const LOCATION_OPTIONS = HYGIENE_LOCATIONS.map((l) => ({ value: l, label: shortLocation(l) }))
 
 // Utilization bands. Green is "at or near capacity", amber is "slipping",
@@ -191,11 +191,9 @@ export default function HygieneTable({
                   </td>
 
                   <td className="px-4 py-3">
-                    <CellSelect
+                    <TimeRangeField
                       value={r.hours || ''}
-                      options={HOURS_OPTIONS}
                       onChange={(v) => commit(r, 'hours', v)}
-                      tone="bg-slate-100 text-slate-600 border-slate-200"
                       disabled={!canEdit}
                       title="Shift hours"
                     />

@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { HYGIENE_LOCATIONS, HYGIENE_HOURS, DAY_LABELS, shortLocation } from '@/lib/constants'
+import { HYGIENE_LOCATIONS, DAY_LABELS, shortLocation } from '@/lib/constants'
 import Select from './Select'
 import DateInput from './DateInput'
+import TimeRangeField, { formatTimeRange, DEFAULT_RANGE } from './TimeRangeField'
 
-const EMPTY = { location: '', workDate: '', hours: '', available: '', utilized: '', notes: '' }
+const EMPTY = { location: '', workDate: '', hours: formatTimeRange(DEFAULT_RANGE), available: '', utilized: '', notes: '' }
 
 // The day of week and the percentage are both derived. Showing them live as the
 // form is filled makes that obvious, and lets the user catch a wrong date
@@ -82,12 +83,7 @@ export default function HygieneModal({ entry, onSave, onClose }) {
           </div>
 
           <Row label="Hours">
-            <Select
-              value={form.hours}
-              onChange={(v) => set('hours', v)}
-              placeholder="Select a shift"
-              options={HYGIENE_HOURS.map((h) => ({ value: h, label: h }))}
-            />
+            <TimeRangeField value={form.hours} onChange={(v) => set('hours', v)} title="Shift hours" />
           </Row>
 
           <div className="grid grid-cols-2 gap-3">

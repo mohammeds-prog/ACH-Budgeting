@@ -18,6 +18,16 @@ import { logActivity } from '@/lib/activityLog'
 const ALL = 'All Locations'
 const PAGE_SIZE = 20
 
+// The location TABS collapse the two Dentique offices into one "Dentique"
+// entry — one less tab to scan when the day-to-day distinction there is Which
+// hygienist worked which chair, not which building. The per-row Location
+// dropdown (table + Add Entry) is untouched and keeps both offices distinct,
+// since that's the field that has to record which office actually happened.
+//
+// Derived from HYGIENE_LOCATIONS rather than hardcoded, so if a location is
+// ever renamed this still finds it by the "Dentique" prefix.
+const DENTIQUE = 'Dentique'
+
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -61,6 +71,20 @@ function resolveHygieneLocation(v) {
   return match ? { value: match } : { error: `Location not recognized: "${raw}"` }
 }
 
+function buildLocationTabs() {
+  const tabs = [{ key: ALL, label: 'All Locations' }]
+  let dentiqueAdded = false
+  for (const l of HYGIENE_LOCATIONS) {
+    if (l.startsWith(DENTIQUE)) {
+      if (!dentiqueAdded) { tabs.push({ key: DENTIQUE, label: DENTIQUE }); dentiqueAdded = true }
+    } else {
+      tabs.push({ key: l, label: shortLocation(l) })
+    }
+  }
+  return tabs
+}
+const LOCATION_TABS = buildLocationTabs()
+
 export default function HygienePage() {
   const profile = useProfile()
 
@@ -97,7 +121,11 @@ export default function HygienePage() {
   const filtered = useMemo(() => {
     return rows
       .filter((r) => {
-        if (selectedLocation !== ALL && r.location !== selectedLocation) return false
+        if (selectedLocation === DENTIQUE) {
+          if (!r.location?.startsWith(DENTIQUE)) return false
+        } else if (selectedLocation !== ALL && r.location !== selectedLocation) {
+          return false
+        }
         if (filters.year  && r.workDate?.slice(0, 4) !== filters.year) return false
         if (filters.month && r.workDate?.slice(5, 7) !== filters.month) return false
         if (filters.from  && (!r.workDate || r.workDate < filters.from)) return false
@@ -183,7 +211,7 @@ export default function HygienePage() {
 
   function handleExport() {
     if (filtered.length === 0) return
-    const locationLabel = selectedLocation === ALL ? ALL : shortLocation(selectedLocation)
+    const locationLabel = selectedLocation === ALL || selectedLocation === DENTIQUE ? selectedLocation : shortLocation(selectedLocation)
     exportHygieneToExcel({ rows: filtered, locationLabel, filters, stats })
     logActivity({
       action: 'export', module: 'Hygiene',
@@ -292,9 +320,7 @@ export default function HygienePage() {
               list of clinics should not each invent their own control. */}
           <div className="glass-card rounded-2xl overflow-hidden mb-4">
             <div className="flex overflow-x-auto divide-x divide-white/40">
-              {[{ key: ALL, label: 'All Locations' },
-                ...HYGIENE_LOCATIONS.map((l) => ({ key: l, label: shortLocation(l) }))
-              ].map(({ key, label }) => (
+              {LOCATION_TABS.map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setSelectedLocation(key)}

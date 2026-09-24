@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 
-export default function Select({ value, onChange, options, placeholder = 'Select…', wide }) {
+export default function Select({ value, onChange, options, placeholder = 'Select…', wide, full }) {
   const [open, setOpen]   = useState(false)
   const [rect, setRect]   = useState(null)
   const btnRef            = useRef(null)
@@ -43,14 +43,14 @@ export default function Select({ value, onChange, options, placeholder = 'Select
   const selected = options.find((o) => o.value === value)
 
   return (
-    <div className="relative">
+    <div className={full ? 'relative w-full' : 'relative'}>
       <button
         ref={btnRef}
         type="button"
         onClick={handleOpen}
         className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-xl border transition-all duration-150 outline-none bg-white text-left text-slate-900
           ${open ? 'border-indigo-400 ring-2 ring-indigo-100/50' : 'border-slate-200 hover:border-slate-300'}
-          ${wide ? 'min-w-[200px]' : 'min-w-[130px]'}`}
+          ${full ? 'w-full' : wide ? 'min-w-[200px]' : 'min-w-[130px]'}`}
       >
         <span className="flex-1 truncate">{selected?.label ?? placeholder}</span>
         <svg

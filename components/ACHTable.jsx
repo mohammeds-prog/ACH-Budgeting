@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, Fragment } from 'react'
+import { useState, useRef, useEffect, useMemo, Fragment } from 'react'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
 import { CellSelect, CellInput, MatchBadge, StatusBadge, matchTone, statusTone, locationTone, toCents, RowMenu } from './cells'
 import { deriveInitials } from '@/lib/initials'
+import Select from './Select'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LAYOUT CONTRACT — read this before changing any width.
@@ -64,7 +65,6 @@ function formatAmount(val) {
 }
 
 const iCell = 'w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100/50 transition-all'
-const iSel  = `${iCell} cursor-pointer appearance-none`
 
 
 const LOC_OPTIONS   = [{ value: '', label: '—' }, ...LOCATIONS.map((l) => ({ value: l, label: shortLocation(l) }))]
@@ -88,10 +88,11 @@ function Checkbox({ checked, indeterminate, onChange, className = '' }) {
   )
 }
 
-export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSaveFields, onDelete, onDeleteMany, onEditMany, highlightIds, isAllLocations, currentLocation, canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, onSaveSplit, showTransferComplete = false, onTransferComplete, profile, attachmentCounts = {}, onOpenAttachments, onOpenActivity }) {
+export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSaveFields, onDelete, onDeleteMany, onEditMany, highlightIds, isAllLocations, currentLocation, canEditFull = true, canEditMatch = true, canDelete = true, onSaveNotes, onSaveSplit, showTransferComplete = false, onTransferComplete, profile, attachmentCounts = {}, onOpenAttachments, onOpenActivity, allEntries = null }) {
   const currentUserInitials = deriveInitials(profile)
   const [confirmId,           setConfirmId]           = useState(null)
   const [confirmBulk,         setConfirmBulk]         = useState(false)
+  const [deleteTyped,         setDeleteTyped]         = useState('')
   const [bulkEditOpen,        setBulkEditOpen]        = useState(false)
   const [selectionMode,       setSelectionMode]       = useState(false)
   const [selectedIds,         setSelectedIds]         = useState(new Set())
@@ -158,27 +159,71 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
     setSelectedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
 
-  const selectableIds = entries.map((e) => e.id)
-  const allSelected   = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id))
-  const someSelected  = selectableIds.some((id) => selectedIds.has(id))
+  // `entries` is only the current page; `allEntries` is every row matching
+  // the current filters across all pages. Rows, not just ids, so the bulk
+  // edit review can show how many rows each change would actually alter.
+  const allEntryIds = useMemo(() => (allEntries ? allEntries.map((e) => e.id) : null), [allEntries])
+  const rowById     = useMemo(() => new Map((allEntries || entries).map((e) => [e.id, e])), [allEntries, entries])
+  const pageIds      = entries.map((e) => e.id)
+  const pageIdSet    = new Set(pageIds)
+  const matchingIds  = allEntryIds || pageIds
+  const spansPages   = matchingIds.length > pageIds.length
+  const pageAllSelected  = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))
+  const pageSomeSelected = pageIds.some((id) => selectedIds.has(id))
+  const allMatchingSelected = matchingIds.length > 0 && selectedIds.size === matchingIds.length
+    && matchingIds.every((id) => selectedIds.has(id))
+  const selectionSpansPages = [...selectedIds].some((id) => !pageIdSet.has(id))
 
-  function toggleAll() {
-    if (allSelected) setSelectedIds(new Set())
-    else setSelectedIds(new Set(selectableIds))
+  const canBulkEdit = canEditMatch || canEditFull || showTransferComplete
+  const canSelect   = canBulkEdit || canDelete
+
+  // Header checkbox: adds/removes THIS page only, leaving selections made on
+  // other pages alone.
+  function togglePage() {
+    setSelectedIds((prev) => {
+      const n = new Set(prev)
+      if (pageAllSelected) pageIds.forEach((id) => n.delete(id))
+      else pageIds.forEach((id) => n.add(id))
+      return n
+    })
   }
+  function selectAllMatching() { setSelectedIds(new Set(matchingIds)) }
 
-  function handleBulkDelete() {
+  // When filters change, drop selections that are no longer in the result set
+  // — otherwise a bulk action would hit rows the user can no longer see.
+  // Returning `prev` when nothing changed avoids a re-render loop.
+  useEffect(() => {
+    if (!allEntryIds) return
+    const valid = new Set(allEntryIds)
+    setSelectedIds((prev) => {
+      let dropped = false
+      const n = new Set()
+      prev.forEach((id) => { if (valid.has(id)) n.add(id); else dropped = true })
+      return dropped ? n : prev
+    })
+  }, [allEntryIds])
+
+  const deleteNeedsTyped = selectedIds.size > TYPED_CONFIRM_OVER || selectionSpansPages
+  const deleteTypedOk    = !deleteNeedsTyped || deleteTyped.replace(/[,\s]/g, '') === String(selectedIds.size)
+
+  async function handleBulkDelete() {
+    if (!deleteTypedOk) return
     const ids = [...selectedIds]
-    onDeleteMany(ids)
-    setSelectedIds(new Set())
     setConfirmBulk(false)
+    await onDeleteMany(ids)
+    setSelectedIds(new Set())
   }
 
   return (
     <>
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-end px-4 py-2.5 border-b border-slate-100">
-          {selectionMode ? (
+        <div className="flex items-center justify-end gap-4 px-4 py-2.5 border-b border-slate-100">
+          {selectionMode && spansPages && !allMatchingSelected && (
+            <button onClick={selectAllMatching} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+              Select all {matchingIds.length.toLocaleString()} matching
+            </button>
+          )}
+          {!canSelect ? null : selectionMode ? (
             <button onClick={exitSelection} className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
               Cancel selection
             </button>
@@ -189,6 +234,24 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
             </button>
           )}
         </div>
+
+        {selectionMode && spansPages && (pageAllSelected || allMatchingSelected) && (
+          <div className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50/70 border-b border-indigo-100 text-xs text-slate-600">
+            {allMatchingSelected ? (
+              <>
+                <span>All <b>{matchingIds.length.toLocaleString()}</b> entries matching your filters are selected.</span>
+                <button onClick={() => setSelectedIds(new Set())} className="font-semibold text-indigo-600 hover:text-indigo-800">Clear selection</button>
+              </>
+            ) : (
+              <>
+                <span>All <b>{pageIds.length}</b> entries on this page are selected.</span>
+                <button onClick={selectAllMatching} className="font-semibold text-indigo-600 hover:text-indigo-800">
+                  Select all {matchingIds.length.toLocaleString()} matching entries
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -218,9 +281,9 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
                   {selectionMode && (
                     <th className="px-3 py-3 bg-slate-50">
                       <Checkbox
-                        checked={allSelected}
-                        indeterminate={someSelected && !allSelected}
-                        onChange={toggleAll}
+                        checked={pageAllSelected}
+                        indeterminate={pageSomeSelected && !pageAllSelected}
+                        onChange={togglePage}
                       />
                     </th>
                   )}
@@ -635,32 +698,39 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80">
           <span className="text-xs font-medium text-slate-700">
-            {selectedIds.size} {selectedIds.size === 1 ? 'row' : 'rows'} selected
+            {selectedIds.size.toLocaleString()} {selectedIds.size === 1 ? 'row' : 'rows'} selected
+            {selectionSpansPages && <span className="text-slate-400 font-normal"> · incl. other pages</span>}
           </span>
           <div className="w-px h-4 bg-slate-200" />
           <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-500 hover:text-slate-700 transition-colors">Clear</button>
-          <button
+          {canBulkEdit && <button
             onClick={() => setBulkEditOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
-            Edit {selectedIds.size}
-          </button>
-          <button
-            onClick={() => setConfirmBulk(true)}
+            Edit {selectedIds.size.toLocaleString()}
+          </button>}
+          {canDelete && <button
+            onClick={() => { setDeleteTyped(''); setConfirmBulk(true) }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-xl transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
-            Delete {selectedIds.size}
-          </button>
+            Delete {selectedIds.size.toLocaleString()}
+          </button>}
         </div>
       )}
 
       {bulkEditOpen && (
         <BulkEditModal
           count={selectedIds.size}
-          onSave={(changes) => {
-            onEditMany([...selectedIds], changes)
+          rows={[...selectedIds].map((id) => rowById.get(id)).filter(Boolean)}
+          spansPages={selectionSpansPages}
+          canEditMatch={canEditMatch}
+          canEditFull={canEditFull}
+          canTransferComplete={showTransferComplete}
+          currentUserInitials={currentUserInitials}
+          onSave={async (payload) => {
+            await onEditMany([...selectedIds], payload)
             setBulkEditOpen(false)
             exitSelection()
           }}
@@ -692,11 +762,26 @@ export default function ACHTable({ entries, sortConfig, onSort, onOpenFull, onSa
             <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center mb-4">
               <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
             </div>
-            <h3 className="font-semibold text-slate-900 mb-1">Delete {selectedIds.size} {selectedIds.size === 1 ? 'entry' : 'entries'}?</h3>
-            <p className="text-sm text-slate-500 mb-5">This action cannot be undone.</p>
+            <h3 className="font-semibold text-slate-900 mb-1">Delete {selectedIds.size.toLocaleString()} {selectedIds.size === 1 ? 'entry' : 'entries'}?</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              {selectionSpansPages && <span className="block text-amber-700 mb-1">This includes entries on other pages that aren’t visible right now.</span>}
+              This action cannot be undone.
+            </p>
+            {/* Same rule as bulk edit: more than a page, or anything off-screen,
+                has to be typed out — a delete has no undo. */}
+            {deleteNeedsTyped && (
+              <div className="mb-4">
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
+                  Type <b className="tabular-nums">{selectedIds.size}</b> to confirm
+                </label>
+                <input autoFocus type="text" inputMode="numeric" value={deleteTyped} onChange={(e) => setDeleteTyped(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && deleteTypedOk) handleBulkDelete() }}
+                  className={`${iCell} tabular-nums ${deleteTyped && !deleteTypedOk ? 'border-red-300' : ''}`} />
+              </div>
+            )}
             <div className="flex gap-2 justify-end">
               <button onClick={() => setConfirmBulk(false)} className="btn-ghost text-sm py-1.5">Cancel</button>
-              <button onClick={handleBulkDelete} className="btn-danger text-sm py-1.5">Delete {selectedIds.size}</button>
+              <button onClick={handleBulkDelete} disabled={!deleteTypedOk} className="btn-danger text-sm py-1.5 disabled:opacity-40 disabled:cursor-not-allowed">Delete {selectedIds.size.toLocaleString()}</button>
             </div>
           </div>
         </div>
@@ -752,73 +837,288 @@ function TransferCompleteModal({ onConfirm, onClose }) {
   )
 }
 
-function BulkEditModal({ count, onSave, onClose }) {
-  const [form, setForm] = useState({ fromLocation: '', match: '', status: '', location: '', initials: '' })
-  const s = (k, v) => setForm((p) => ({ ...p, [k]: v }))
-  const hasChanges = Object.values(form).some((v) => v !== '')
+// Bulk edit. Every field defaults to "no change", so only what is touched is
+// written. Fields are shown according to the SAME permissions as the per-row
+// controls — the database allows any ACH viewer to update rows (an accepted
+// risk), so the UI is the only thing enforcing who can bulk-change what.
+//
+// Deliberately absent: date, amount, description and splits. Those are unique
+// to each payment; setting them to one value across many rows would destroy
+// data rather than edit it.
+const NO_CHANGE = '— no change —'
 
-  function handleSubmit(e) {
+// Edits that must be typed out before applying: anything bigger than a page,
+// or reaching rows the user can't currently see. A single-page tidy-up stays
+// one click; a sweeping change can't be applied by an accidental double-click.
+const TYPED_CONFIRM_OVER = 20
+
+const FIELD_LABELS = {
+  fromLocation: 'Received By', location: 'Belongs To', match: 'Match', status: 'Status',
+  initials: 'Initials', details: 'Details', bankAccount: 'Bank Account', insuranceName: 'Insurance Name',
+}
+
+function BulkEditModal({ count, rows = [], spansPages, onSave, onClose, canEditMatch, canEditFull, canTransferComplete, currentUserInitials = '' }) {
+  const [form, setForm] = useState({
+    fromLocation: '', location: '', match: '', status: '', initials: '',
+    details: '', bankAccount: '', insuranceName: '',
+    notes: '', notesMode: 'append',
+    transfer: '', transferInitials: currentUserInitials,
+  })
+  const [step, setStep] = useState('edit')          // 'edit' | 'review'
+  const [typed, setTyped] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const s = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+
+  const locOpts = LOCATIONS.map((l) => ({ value: l, label: shortLocation(l) }))
+
+  const uniformKeys = ['fromLocation', 'location', 'match', 'status', 'initials', 'details', 'bankAccount', 'insuranceName']
+  const touchedUniform = uniformKeys.filter((k) => form[k].trim() !== '')
+  const notesText   = form.notes.trim()
+  const hasNotes    = notesText !== ''
+  const hasTransfer = form.transfer !== ''
+  const hasChanges  = touchedUniform.length > 0 || hasNotes || hasTransfer
+  const transferInvalid = form.transfer === 'complete' && !form.transferInitials.trim()
+
+  // Same rule as a single-row edit: changing content stamps the editor's
+  // initials unless they typed initials themselves. Transfer fields carry their
+  // own initials, so a transfer-only change doesn't restamp.
+  const willStamp = !form.initials.trim() && !!currentUserInitials && (touchedUniform.length > 0 || hasNotes)
+
+  const needsTyped = count > TYPED_CONFIRM_OVER || spansPages
+  const typedOk    = !needsTyped || typed.replace(/[,\s]/g, '') === String(count)
+
+  // ── Impact: for each change, how many selected rows it would actually alter.
+  // "Status → Posted, changes 312 rows" catches a wrong selection far better
+  // than a generic "are you sure?" that everyone clicks through.
+  const cur = (r, k) => String(r[k] ?? '').trim()
+  const review = []
+  for (const k of touchedUniform) {
+    const v = form[k].trim()
+    const shown = k === 'location' || k === 'fromLocation' ? shortLocation(v) : v
+    review.push({ label: FIELD_LABELS[k], value: shown, changes: rows.filter((r) => cur(r, k) !== v).length })
+  }
+  if (willStamp) {
+    review.push({ label: 'Initials', value: `${currentUserInitials} (your initials, automatic)`, changes: rows.filter((r) => cur(r, 'initials') !== currentUserInitials).length })
+  }
+  let notesLoss = 0
+  if (hasNotes) {
+    if (form.notesMode === 'append') {
+      review.push({ label: 'Notes', value: `add “${notesText}”`, changes: rows.length })
+    } else {
+      notesLoss = rows.filter((r) => cur(r, 'notes') !== '' && cur(r, 'notes') !== notesText).length
+      review.push({ label: 'Notes', value: `replace with “${notesText}”`, changes: rows.filter((r) => cur(r, 'notes') !== notesText).length })
+    }
+  }
+  if (form.transfer === 'complete') {
+    review.push({ label: 'Transfer', value: `mark complete (${form.transferInitials.trim()})`, changes: rows.filter((r) => !r.transferComplete).length })
+  }
+  if (form.transfer === 'not') {
+    review.push({ label: 'Transfer', value: 'mark NOT complete', changes: rows.filter((r) => r.transferComplete).length })
+  }
+  const totalChanges = review.reduce((n, r) => n + r.changes, 0)
+
+  function goReview(e) {
     e.preventDefault()
+    if (!hasChanges || transferInvalid) return
+    setTyped('')
+    setError('')
+    setStep('review')
+  }
+
+  async function apply() {
+    if (!typedOk || saving) return
     const changes = {}
-    if (form.fromLocation) changes.fromLocation = form.fromLocation
-    if (form.match)        changes.match        = form.match
-    if (form.status)       changes.status       = form.status
-    if (form.location)     changes.location     = form.location
-    if (form.initials)     changes.initials     = form.initials
-    onSave(changes)
+    for (const k of touchedUniform) changes[k] = form[k].trim()
+    if (form.transfer === 'complete') { changes.transferComplete = true;  changes.transferInitials = form.transferInitials.trim() }
+    if (form.transfer === 'not')      { changes.transferComplete = false; changes.transferInitials = null }
+    setSaving(true)
+    setError('')
+    try {
+      await onSave({ changes, notes: hasNotes ? { text: notesText, mode: form.notesMode } : null })
+    } catch (err) {
+      setError(err?.message || 'Failed to save. Check your connection.')
+      setSaving(false)
+    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 w-full max-w-sm z-10">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={saving ? undefined : onClose} />
+      <div className="relative bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/80 w-full max-w-lg z-10 max-h-[88vh] flex flex-col">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Bulk Edit</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Editing {count} {count === 1 ? 'row' : 'rows'} — blank fields are left unchanged</p>
+            <h2 className="text-base font-semibold text-slate-900">{step === 'edit' ? 'Bulk Edit' : 'Review changes'}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {step === 'edit'
+                ? <>Editing {count.toLocaleString()} {count === 1 ? 'row' : 'rows'} — anything left on “no change” is untouched</>
+                : <>Nothing has been saved yet. Check this before applying.</>}
+            </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} disabled={saving} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-40">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          <BF label="From Location">
-            <select value={form.fromLocation} onChange={(e) => s('fromLocation', e.target.value)} className={iSel}>
-              <option value="">— no change —</option>
-              {LOCATIONS.map((l) => <option key={l} value={l}>{shortLocation(l)}</option>)}
-            </select>
-          </BF>
-          <BF label="To Location">
-            <select value={form.location} onChange={(e) => s('location', e.target.value)} className={iSel}>
-              <option value="">— no change —</option>
-              {LOCATIONS.map((l) => <option key={l} value={l}>{shortLocation(l)}</option>)}
-            </select>
-          </BF>
-          <BF label="Match">
-            <select value={form.match} onChange={(e) => s('match', e.target.value)} className={iSel}>
-              <option value="">— no change —</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-              <option value="Partial">Partial</option>
-            </select>
-          </BF>
-          <BF label="Status">
-            <select value={form.status} onChange={(e) => s('status', e.target.value)} className={iSel}>
-              <option value="">— no change —</option>
-              {ACH_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
-            </select>
-          </BF>
-          <BF label="Initials">
-            <input type="text" value={form.initials} onChange={(e) => s('initials', e.target.value)} placeholder="Leave blank to keep existing" maxLength={10} className={iCell} />
-          </BF>
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
-            <button type="submit" disabled={!hasChanges} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-lg shadow-indigo-200/80">
-              Apply to {count} {count === 1 ? 'row' : 'rows'}
-            </button>
+
+        {step === 'edit' ? (
+          <form onSubmit={goReview} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {spansPages && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                This selection includes rows on other pages, not just the ones you can see.
+              </p>
+            )}
+
+            {canEditMatch && (
+              <Section title="Reconciliation">
+                <div className="grid grid-cols-2 gap-3">
+                  <BF label="Match">
+                    <Select full value={form.match} onChange={(v) => s('match', v)} placeholder={NO_CHANGE}
+                      options={['Yes', 'No', 'Partial'].map((v) => ({ value: v, label: v }))} />
+                  </BF>
+                  <BF label="Status">
+                    <Select full value={form.status} onChange={(v) => s('status', v)} placeholder={NO_CHANGE}
+                      options={ACH_STATUSES.map((v) => ({ value: v, label: v }))} />
+                  </BF>
+                  <BF label="Received By">
+                    <Select full value={form.fromLocation} onChange={(v) => s('fromLocation', v)} placeholder={NO_CHANGE} options={locOpts} />
+                  </BF>
+                  <BF label="Belongs To">
+                    <Select full value={form.location} onChange={(v) => s('location', v)} placeholder={NO_CHANGE} options={locOpts} />
+                  </BF>
+                </div>
+                <BF label="Initials">
+                  <input type="text" value={form.initials} onChange={(e) => s('initials', e.target.value)} maxLength={10}
+                    placeholder={currentUserInitials ? `Blank = stamp yours (${currentUserInitials})` : 'Leave blank to keep existing'}
+                    className={iCell} />
+                </BF>
+              </Section>
+            )}
+
+            {canEditFull && (
+              <Section title="Payment details">
+                <div className="grid grid-cols-2 gap-3">
+                  <BF label="Details">
+                    <Select full value={form.details} onChange={(v) => s('details', v)} placeholder={NO_CHANGE}
+                      options={['CREDIT', 'DEBIT'].map((v) => ({ value: v, label: v }))} />
+                  </BF>
+                  <BF label="Bank Account">
+                    <input type="text" value={form.bankAccount} onChange={(e) => s('bankAccount', e.target.value)} placeholder={NO_CHANGE} className={iCell} />
+                  </BF>
+                </div>
+                <BF label="Insurance Name">
+                  <input type="text" value={form.insuranceName} onChange={(e) => s('insuranceName', e.target.value)} placeholder={NO_CHANGE} className={iCell} />
+                </BF>
+              </Section>
+            )}
+
+            {canEditMatch && (
+              <Section title="Notes">
+                <div className="flex gap-1 p-0.5 bg-slate-100 rounded-lg w-fit">
+                  {[['append', 'Add to existing'], ['replace', 'Replace existing']].map(([mode, label]) => (
+                    <button key={mode} type="button" onClick={() => s('notesMode', mode)}
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${form.notesMode === mode ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <textarea value={form.notes} onChange={(e) => s('notes', e.target.value)} rows={2}
+                  placeholder={form.notesMode === 'append' ? 'Added after each row’s current note' : 'Overwrites every selected row’s note'}
+                  className={`${iCell} resize-none`} />
+              </Section>
+            )}
+
+            {canTransferComplete && (
+              <Section title="Transfer">
+                <div className="grid grid-cols-2 gap-3">
+                  <BF label="Transfer Complete">
+                    <Select full value={form.transfer} onChange={(v) => s('transfer', v)} placeholder={NO_CHANGE}
+                      options={[{ value: 'complete', label: 'Mark complete' }, { value: 'not', label: 'Mark not complete' }]} />
+                  </BF>
+                  {form.transfer === 'complete' && (
+                    <BF label="Transfer Initials *">
+                      <input type="text" value={form.transferInitials} onChange={(e) => s('transferInitials', e.target.value)} maxLength={10}
+                        className={`${iCell} ${transferInvalid ? 'border-red-300' : ''}`} />
+                    </BF>
+                  )}
+                </div>
+              </Section>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all">Cancel</button>
+              <button type="submit" disabled={!hasChanges || transferInvalid}
+                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-lg shadow-indigo-200/80">
+                Review changes →
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+              {review.map((r, i) => (
+                <div key={i} className="flex items-start justify-between gap-3 px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{r.label}</p>
+                    <p className="text-sm text-slate-800 break-words">→ {r.value}</p>
+                  </div>
+                  <p className={`shrink-0 text-xs tabular-nums text-right ${r.changes === 0 ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>
+                    {r.changes === 0
+                      ? 'no change — already set'
+                      : <>changes {r.changes.toLocaleString()}<span className="font-normal text-slate-400"> of {rows.length.toLocaleString()}</span></>}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {notesLoss > 0 && (
+              <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                <b>{notesLoss.toLocaleString()}</b> {notesLoss === 1 ? 'row already has a note' : 'rows already have notes'} that will be permanently replaced. Switch to “Add to existing” to keep them.
+              </p>
+            )}
+            {spansPages && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                Includes rows on other pages that aren’t visible right now.
+              </p>
+            )}
+            {totalChanges === 0 && (
+              <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                Every selected row already has these values — applying would change nothing.
+              </p>
+            )}
+
+            {needsTyped && totalChanges > 0 && (
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
+                  This affects {count.toLocaleString()} rows. Type <b className="tabular-nums">{count}</b> to confirm.
+                </label>
+                <input autoFocus type="text" inputMode="numeric" value={typed} onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') apply() }}
+                  className={`${iCell} tabular-nums ${typed && !typedOk ? 'border-red-300' : ''}`} />
+              </div>
+            )}
+
+            {error && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
+
+            <div className="flex justify-between gap-2 pt-2 border-t border-slate-100">
+              <button type="button" onClick={() => setStep('edit')} disabled={saving} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-xl transition-all disabled:opacity-40">← Back</button>
+              <button type="button" onClick={apply} disabled={!typedOk || saving || totalChanges === 0}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-lg shadow-indigo-200/80">
+                {saving && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                {saving ? 'Applying…' : `Apply to ${count.toLocaleString()} ${count === 1 ? 'row' : 'rows'}`}
+              </button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
+    </div>
+  )
+}
+
+function Section({ title, children }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{title}</p>
+      {children}
     </div>
   )
 }

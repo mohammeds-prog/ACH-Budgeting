@@ -8,7 +8,9 @@ import Pager from '@/components/Pager'
 import FilterBar from '@/components/FilterBar'
 import ACHTable from '@/components/ACHTable'
 import EntryModal from '@/components/EntryModal'
-import { getEntries, saveEntry, deleteEntry, bulkInsertEntries, getUniqueInsurers, saveNotes, markTransferComplete, getAttachmentCounts } from '@/lib/storage'
+import { getEntries, saveEntry, deleteEntry, bulkInsertEntries, getUniqueInsurers, saveNotes, markTransferComplete, getAttachmentCounts, bulkUpdateEntries, updateNotesMany, bulkDeleteEntries } from '@/lib/storage'
+import { deriveInitials } from '@/lib/initials'
+import { isoMonth, isoYear } from '@/lib/dates'
 import AttachmentsPanel from '@/components/AttachmentsPanel'
 import ActivityPanel from '@/components/ActivityPanel'
 import { LOCATIONS, ACH_STATUSES } from '@/lib/constants'
@@ -186,9 +188,9 @@ export default function ACHPage() {
           const matchesFrom   = e.fromLocation === selectedLocation
           if (!matchesDirect && !matchesSplit && !matchesFrom) return false
         }
-        const date = new Date(e.postingDate)
-        if (filters.month && date.getMonth() + 1 !== Number(filters.month)) return false
-        if (filters.year && date.getFullYear() !== Number(filters.year)) return false
+        // Read from the string, not new Date() — see lib/dates.js (timezone bug).
+        if (filters.month && isoMonth(e.postingDate) !== Number(filters.month)) return false
+        if (filters.year && isoYear(e.postingDate) !== Number(filters.year)) return false
         if (filters.from && e.postingDate < filters.from) return false
         if (filters.to && e.postingDate > filters.to) return false
         if (filters.match) {
@@ -242,9 +244,9 @@ export default function ACHPage() {
           const splitMatch  = e.splits?.some((s) => filters.belongsTo.includes(s.location))
           if (!directMatch && !splitMatch) return false
         }
-        const date = new Date(e.postingDate)
-        if (filters.month && date.getMonth() + 1 !== Number(filters.month)) return false
-        if (filters.year && date.getFullYear() !== Number(filters.year)) return false
+        // Read from the string, not new Date() — see lib/dates.js (timezone bug).
+        if (filters.month && isoMonth(e.postingDate) !== Number(filters.month)) return false
+        if (filters.year && isoYear(e.postingDate) !== Number(filters.year)) return false
         if (filters.from && e.postingDate < filters.from) return false
         if (filters.to && e.postingDate > filters.to) return false
         if (filters.status && e.status !== filters.status) return false
@@ -319,9 +321,9 @@ export default function ACHPage() {
         const splitMatch  = e.splits?.some((s) => filters.belongsTo.includes(s.location))
         if (!directMatch && !splitMatch) return false
       }
-      const date = new Date(e.postingDate)
-      if (filters.month && date.getMonth() + 1 !== Number(filters.month)) return false
-      if (filters.year && date.getFullYear() !== Number(filters.year)) return false
+      // Read from the string, not new Date() — see lib/dates.js (timezone bug).
+      if (filters.month && isoMonth(e.postingDate) !== Number(filters.month)) return false
+      if (filters.year && isoYear(e.postingDate) !== Number(filters.year)) return false
       if (filters.from && e.postingDate < filters.from) return false
       if (filters.to && e.postingDate > filters.to) return false
       if (filters.status && e.status !== filters.status) return false
@@ -385,6 +387,13 @@ export default function ACHPage() {
     return sum + alloc
   }, 0)
   const unmatched       = statsEntries.filter((e) => effectiveMatch(e) === 'No').length
+  // The stat cards summarise BOTH tabs (All Entries + Transfer Complete) while
+  // the table shows one — so the Entries card spells out the split, otherwise
+  // 1,683 on the card vs 1,605 under the table reads as a contradiction.
+  // Deliberately not narrowed to the active tab: completed transfers were still
+  // received, and dropping them would understate Total Received.
+  const activeCount     = statsEntries.filter((e) => !e.transferComplete).length
+  const completedCount  = statsEntries.length - activeCount
   // Bank received = full payment amounts where this location's bank account received the money
   const bankReceived    = entries
     .filter((e) => {
@@ -394,7 +403,7 @@ export default function ACHPage() {
       return true
     })
     .reduce((sum, e) => sum + Number(e.amount || 0), 0)
-  const uniqueYears      = [...new Set(entries.map((e) => new Date(e.postingDate).getFullYear()).filter(Boolean))].sort((a, b) => b - a)
+  const uniqueYears      = [...new Set(entries.map((e) => isoYear(e.postingDate)).filter(Boolean))].sort((a, b) => b - a)
   const uniqueInsurers   = [...new Set(entries.map((e) => e.insuranceName).filter(Boolean))].sort()
   // Initials live on the entry and, for split payments, on each split — collect both.
   const uniqueInitials   = [...new Set(
@@ -488,14 +497,55 @@ export default function ACHPage() {
     }
   }
 
-  async function handleEditMany(ids, changes) {
-    try {
-      const toUpdate = entries.filter((e) => ids.includes(e.id))
-      const saved = await Promise.all(toUpdate.map((e) => saveEntry({ ...e, ...changes, id: e.id })))
-      setEntries((prev) => prev.map((e) => saved.find((s) => s.id === e.id) || e))
-      logActivity({ action: 'update', module: 'ACH', description: `Bulk updated ${ids.length} ACH ${ids.length === 1 ? 'entry' : 'entries'}`, metadata: { count: ids.length, ids, changes } })
-    } catch {
-      alert('Failed to save. Check your connection.')
+  // Bulk edit. `changes` is the same for every row, so it goes out as a few
+  // chunked UPDATEs touching only those columns. Appended notes differ per row
+  // and go through a small worker pool instead.
+  async function handleEditMany(ids, { changes, notes }) {
+    const patch = { ...changes }
+    if (notes?.mode === 'replace') patch.notes = notes.text
+
+    // Same rule as a single-row edit: content changes stamp the editor's
+    // initials unless initials were set explicitly. Transfer fields carry their
+    // own initials, so a transfer-only change doesn't restamp.
+    const contentChanged = !!notes || Object.keys(patch).some((k) => k !== 'transferComplete' && k !== 'transferInitials')
+    const myInitials = deriveInitials(profile)
+    if (contentChanged && !('initials' in patch) && myInitials) patch.initials = myInitials
+
+    const latest = new Map()   // id -> newest saved row
+    const failed = new Set()
+
+    if (Object.keys(patch).length) {
+      const r = await bulkUpdateEntries(ids, patch)
+      r.saved.forEach((row) => latest.set(row.id, row))
+      r.failedIds.forEach((id) => failed.add(id))
+    }
+
+    if (notes?.mode === 'append') {
+      const byId = new Map(entries.map((e) => [e.id, e]))
+      const pairs = ids.filter((id) => !failed.has(id)).map((id) => {
+        const current = (byId.get(id)?.notes || '').trim()
+        return { id, notes: current ? `${current}; ${notes.text}` : notes.text }
+      })
+      const r = await updateNotesMany(pairs)
+      r.saved.forEach((row) => latest.set(row.id, row))
+      r.failedIds.forEach((id) => failed.add(id))
+    }
+
+    setEntries((prev) => prev.map((e) => latest.get(e.id) || e))
+
+    // `patch` in the metadata is what lets each row's Activity panel show
+    // "Status: set to Posted" rather than a generic "bulk updated".
+    const loggedPatch = { ...patch }
+    if (notes?.mode === 'append') loggedPatch.notes = `(added) ${notes.text}`
+    const okIds = ids.filter((id) => !failed.has(id))
+    logActivity({
+      action: 'update', module: 'ACH',
+      description: `Bulk updated ${okIds.length} ACH ${okIds.length === 1 ? 'entry' : 'entries'} — ${Object.keys(loggedPatch).join(', ')}`,
+      metadata: { count: okIds.length, ids: okIds, patch: loggedPatch },
+    })
+
+    if (failed.size) {
+      alert(`${okIds.length.toLocaleString()} updated, but ${failed.size.toLocaleString()} could not be — you may not have permission for them, or the connection dropped. Refresh to see their current values.`)
     }
   }
 
@@ -536,9 +586,16 @@ export default function ACHPage() {
 
   async function handleDeleteMany(ids) {
     try {
-      await Promise.all(ids.map(deleteEntry))
-      setEntries((prev) => prev.filter((e) => !ids.includes(e.id)))
-      logActivity({ action: 'delete', module: 'ACH', description: `Deleted ${ids.length} ACH ${ids.length === 1 ? 'entry' : 'entries'}`, metadata: { count: ids.length } })
+      const { deletedIds, failedIds } = await bulkDeleteEntries(ids)
+      // Only remove what the database confirmed. A delete blocked by RLS
+      // "succeeds" with zero rows, and removing it from screen anyway made rows
+      // vanish and then reappear on refresh.
+      const gone = new Set(deletedIds)
+      setEntries((prev) => prev.filter((e) => !gone.has(e.id)))
+      logActivity({ action: 'delete', module: 'ACH', description: `Deleted ${deletedIds.length} ACH ${deletedIds.length === 1 ? 'entry' : 'entries'}`, metadata: { count: deletedIds.length, ids: deletedIds } })
+      if (failedIds.length) {
+        alert(`${deletedIds.length.toLocaleString()} deleted, but ${failedIds.length.toLocaleString()} could not be — you may not have permission, or the connection dropped.`)
+      }
     } catch {
       alert('Failed to delete. Check your connection.')
     }
@@ -597,7 +654,7 @@ export default function ACHPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3 mt-8">
               {[
                 { label: 'Entries',            value: statsEntries.length.toLocaleString(),             color: 'text-slate-900',    onClick: null,
-                  hint: 'Total number of ACH entries matching the current filters.' },
+                  hint: `${activeCount.toLocaleString()} active + ${completedCount.toLocaleString()} transfer complete — the same split as the All Entries and Transfer Complete tabs below. Counts every entry matching your filters; not narrowed by the Match filter, so Matched and Unmatched can always show both sides.` },
                 { label: 'Total Received',     value: loading ? '—' : fmt(bankReceived),                color: 'text-violet-600',      onClick: null,
                   hint: `Full payment amounts received by ${selectedLocation === ALL ? 'each location\'s' : `${selectedLocation.replace('Valley View Dental ', '')}'s`} bank account. Updates only when the location tab changes.` },
                 { label: 'Allocated Amount',   value: loading ? '—' : fmt(total),                       color: total < 0 ? 'text-red-600' : 'text-emerald-600', onClick: null,
@@ -788,6 +845,7 @@ export default function ACHPage() {
               <Pager page={page} totalPages={totalPages} pageSize={PAGE_SIZE} total={filtered.length} onChange={goToPage} />
               <ACHTable
                 entries={paged}
+                allEntries={filtered}
                 sortConfig={sortConfig}
                 onSort={handleSort}
                 onOpenFull={setModalEntry}
@@ -830,6 +888,7 @@ export default function ACHPage() {
               ) : (
                 <ACHTable
                   entries={tcPaged}
+                  allEntries={tcFiltered}
                   sortConfig={sortConfig}
                   onSort={handleSort}
                   onOpenFull={setModalEntry}

@@ -17,11 +17,14 @@ import { logActivity } from '@/lib/activityLog'
 import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
 import DateInput from '@/components/DateInput'
+import { isoMonthKey } from '@/lib/dates'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const VENDOR_COLORS = ['#8b5cf6','#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#f97316','#14b8a6','#e11d48','#84cc16']
 
+// For LOCAL dates only (e.g. today). Stored date strings use isoMonthKey —
+// see lib/dates.js for why the two must not be mixed.
 function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
@@ -204,7 +207,7 @@ export default function ExpenditurePage() {
   const spendMap = useMemo(() => {
     const map = {}
     entries.forEach((e) => {
-      const k = `${monthKey(new Date(e.date))}|${e.clinic}`
+      const k = `${isoMonthKey(e.date)}|${e.clinic}`
       map[k] = (map[k] ?? 0) + Number(e.amount || 0)
     })
     return map
@@ -214,7 +217,7 @@ export default function ExpenditurePage() {
   function computeBudget(loc, targetMonth) {
     const months = [...new Set([
       ...Object.keys(collections),
-      ...entries.filter((e) => e.clinic === loc).map((e) => monthKey(new Date(e.date))),
+      ...entries.filter((e) => e.clinic === loc).map((e) => isoMonthKey(e.date)),
     ])].filter((m) => m < targetMonth).sort()
 
     let carry = 0
@@ -235,7 +238,7 @@ export default function ExpenditurePage() {
   const prevCollections = collections[prevKey]?.[selectedLocation] ?? 0
 
   const locationEntries = useMemo(() =>
-    entries.filter((e) => monthKey(new Date(e.date)) === selectedMonth && e.clinic === selectedLocation),
+    entries.filter((e) => isoMonthKey(e.date) === selectedMonth && e.clinic === selectedLocation),
     [entries, selectedMonth, selectedLocation]
   )
 
@@ -281,7 +284,7 @@ export default function ExpenditurePage() {
       if (!map[v]) map[v] = { vendor: v, total: 0, count: 0, monthSet: new Set() }
       map[v].total += Number(e.amount || 0)
       map[v].count++
-      map[v].monthSet.add(monthKey(new Date(e.date)))
+      map[v].monthSet.add(isoMonthKey(e.date))
     })
     const rows = Object.values(map)
       .map(({ vendor, total, count, monthSet }) => ({ vendor, total, count, months: monthSet.size, avg: monthSet.size > 0 ? total / monthSet.size : 0 }))

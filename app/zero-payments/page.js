@@ -20,6 +20,7 @@ import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
 import { exportZeroPaymentsToExcel } from '@/lib/exportZeroPayments'
 import { deriveInitials } from '@/lib/initials'
+import { isoMonth, isoYear } from '@/lib/dates'
 
 const ALL = 'all'
 const PAGE_SIZE = 20
@@ -86,9 +87,9 @@ export default function ZeroPaymentsPage() {
       .filter((e) => {
         if (selectedLocation !== ALL && e.location !== selectedLocation) return false
         if (e.eobDate) {
-          const d = new Date(e.eobDate)
-          if (filters.month && d.getUTCMonth() + 1 !== Number(filters.month)) return false
-          if (filters.year  && d.getUTCFullYear() !== Number(filters.year))   return false
+          // Read from the string — see lib/dates.js (timezone bug).
+          if (filters.month && isoMonth(e.eobDate) !== Number(filters.month)) return false
+          if (filters.year  && isoYear(e.eobDate)  !== Number(filters.year))  return false
         } else if (filters.month || filters.year) {
           return false
         }

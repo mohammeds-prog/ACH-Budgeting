@@ -199,7 +199,10 @@ export default function ACHPage() {
             : (e.match || 'No')
           if (effectiveMatch !== filters.match) return false
         }
-        if (e.transferComplete) return false
+        // Transfer-complete entries not yet Posted still need work, so they stay
+        // here (the table tints them green) and move to the Transfer Complete
+        // tab once marked Posted.
+        if (e.transferComplete && e.status === 'Posted') return false
         if (filters.status && e.status !== filters.status) return false
         if (filters.initials) {
           // Split entries keep initials per location, so match the parent or any split.
@@ -231,7 +234,9 @@ export default function ACHPage() {
   const tcFiltered = useMemo(() => {
     return entries
       .filter((e) => {
-        if (!e.transferComplete) return false
+        // Only finished transfers: complete AND Posted. Unposted ones live in
+        // All Entries instead, so each entry appears in exactly one tab.
+        if (!e.transferComplete || e.status !== 'Posted') return false
         if (selectedLocation !== ALL && selectedLocation !== CUSTOM) {
           const matchesDirect = e.location === selectedLocation
           const matchesSplit  = e.splits?.some((s) => s.location === selectedLocation)
@@ -387,13 +392,6 @@ export default function ACHPage() {
     return sum + alloc
   }, 0)
   const unmatched       = statsEntries.filter((e) => effectiveMatch(e) === 'No').length
-  // The stat cards summarise BOTH tabs (All Entries + Transfer Complete) while
-  // the table shows one — so the Entries card spells out the split, otherwise
-  // 1,683 on the card vs 1,605 under the table reads as a contradiction.
-  // Deliberately not narrowed to the active tab: completed transfers were still
-  // received, and dropping them would understate Total Received.
-  const activeCount     = statsEntries.filter((e) => !e.transferComplete).length
-  const completedCount  = statsEntries.length - activeCount
   // Bank received = full payment amounts where this location's bank account received the money
   const bankReceived    = entries
     .filter((e) => {
@@ -654,7 +652,7 @@ export default function ACHPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3 mt-8">
               {[
                 { label: 'Entries',            value: statsEntries.length.toLocaleString(),             color: 'text-slate-900',    onClick: null,
-                  hint: `${activeCount.toLocaleString()} active + ${completedCount.toLocaleString()} transfer complete — the same split as the All Entries and Transfer Complete tabs below. Counts every entry matching your filters; not narrowed by the Match filter, so Matched and Unmatched can always show both sides.` },
+                  hint: `Every entry matching your filters — the All Entries and Transfer Complete tabs below add up to this. Transfer-complete entries not yet Posted are counted under All Entries. Not narrowed by the Match filter, so Matched and Unmatched can always show both sides.` },
                 { label: 'Total Received',     value: loading ? '—' : fmt(bankReceived),                color: 'text-violet-600',      onClick: null,
                   hint: `Full payment amounts received by ${selectedLocation === ALL ? 'each location\'s' : `${selectedLocation.replace('Valley View Dental ', '')}'s`} bank account. Updates only when the location tab changes.` },
                 { label: 'Allocated Amount',   value: loading ? '—' : fmt(total),                       color: total < 0 ? 'text-red-600' : 'text-emerald-600', onClick: null,

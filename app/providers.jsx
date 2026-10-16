@@ -5,6 +5,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ProfileContext } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
+import SessionGuard from '@/components/SessionGuard'
+import { expiredWhileAway, clearSessionMarks, setSignoutReason } from '@/lib/session'
 
 // Matches the app shell. The old spinner was bg-slate-900, so even a brief
 // delay read as a jarring dark flash in front of a light product.
@@ -89,6 +91,7 @@ export default function Providers({ children }) {
     // so the children never render without a profile.
     function bailToLogin() {
       clearStoredSession()
+      clearSessionMarks()
       setProfile(null)
       setStatus('anon')
       if (pathname !== '/login') router.replace('/login')
@@ -96,6 +99,14 @@ export default function Providers({ children }) {
 
     // ── Fast path: no stored token, so no network needed at all. ──────────
     if (!hasStoredSession()) {
+      bailToLogin()
+      return
+    }
+
+    // ── Session left behind: browser was closed, or idle past the limit. ──
+    const away = expiredWhileAway()
+    if (away) {
+      setSignoutReason(away)
       bailToLogin()
       return
     }
@@ -134,11 +145,16 @@ export default function Providers({ children }) {
       if (event === 'INITIAL_SESSION') return
 
       if (!session) {
+        clearSessionMarks()
         setProfile(null)
         setStatus('anon')
         if (pathname !== '/login') router.replace('/login')
         return
       }
+
+      // NOT markSessionStart() here: supabase-js also emits SIGNED_IN when a tab
+      // becomes visible again (_recoverAndRefresh), which would reset the idle
+      // clock after a laptop sleep. The login form starts the clocks instead.
 
       // A plain token refresh doesn't change permissions; skip the extra query.
       if (event === 'TOKEN_REFRESHED') return
@@ -175,6 +191,7 @@ export default function Providers({ children }) {
 
   return (
     <ProfileContext.Provider value={profile}>
+      <SessionGuard />
       {children}
     </ProfileContext.Provider>
   )

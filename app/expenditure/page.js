@@ -18,6 +18,7 @@ import { useProfile } from '@/lib/profileContext'
 import { can } from '@/lib/permissions'
 import DateInput from '@/components/DateInput'
 import { isoMonthKey } from '@/lib/dates'
+import LoadError from '@/components/LoadError'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -124,6 +125,7 @@ export default function ExpenditurePage() {
   const [entries, setEntries] = useState([])
   const [collections, setCollectionsState] = useState({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(currentKey)
   const [pickerYear, setPickerYear] = useState(now.getFullYear())
   const [selectedLocation, setSelectedLocation] = useState(LOCATIONS[0])
@@ -180,7 +182,7 @@ export default function ExpenditurePage() {
   useEffect(() => {
     Promise.all([getExpEntries(), getCollections(), getVendors()])
       .then(([e, c, v]) => { setEntries(e); setCollectionsState(c); setVendors(v) })
-      .catch((e) => console.error('Failed to load data:', e))
+      .catch((e) => { console.error('Failed to load data:', e); setLoadError("Couldn't load supply budget data. The list below may be incomplete — retry before relying on it.") })
       .finally(() => setLoading(false))
   }, [])
 
@@ -343,6 +345,7 @@ export default function ExpenditurePage() {
 
       <div className="relative z-10">
         <AppHeader />
+        {loadError && <div className="max-w-screen-xl mx-auto px-6 pt-4"><LoadError message={loadError} /></div>}
 
         {/* ── Hero ── */}
         <div className="futuristic-hero">

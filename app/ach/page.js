@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import AppHeader from '@/components/AppHeader'
 import Pager from '@/components/Pager'
+import LoadError from '@/components/LoadError'
 import FilterBar from '@/components/FilterBar'
 import ACHTable from '@/components/ACHTable'
 import EntryModal from '@/components/EntryModal'
@@ -129,6 +130,7 @@ export default function ACHPage() {
   const [entries, setEntries] = useState([])
   const [allInsurers, setAllInsurers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [selectedLocation, setSelectedLocation] = useState(ALL)
   const [filters, setFilters] = useState({ month: '', year: '', from: '', to: '', match: '', status: '', search: '', amount: '', insurance: '', initials: '', receivedBy: [], belongsTo: [] })
   const [showTCView, setShowTCView] = useState(false)
@@ -148,7 +150,7 @@ export default function ACHPage() {
   useEffect(() => {
     getEntries()
       .then(setEntries)
-      .catch((e) => console.error('Failed to load ACH entries:', e))
+      .catch((e) => { console.error('Failed to load ACH entries:', e); setLoadError("Couldn't load ACH entries. The list below may be incomplete — retry before relying on it.") })
       .finally(() => setLoading(false))
     getUniqueInsurers()
       .then(setAllInsurers)
@@ -690,6 +692,7 @@ export default function ACHPage() {
 
         {/* Tabs + filters — constrained width */}
         <div className="max-w-[1600px] mx-auto px-6 pt-4 space-y-4">
+          {loadError && <LoadError message={loadError} />}
           {/* Location tabs */}
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="flex overflow-x-auto divide-x divide-white/40">

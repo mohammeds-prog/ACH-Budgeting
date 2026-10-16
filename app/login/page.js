@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import TuskLogo from '@/components/TuskLogo'
 import { supabase } from '@/lib/supabase'
+import { markSessionStart, takeSignoutReason, IDLE_MS } from '@/lib/session'
 
 const MAX_ATTEMPTS = 5
 const LOCKOUT_MS   = 15 * 60 * 1000 // 15 minutes
@@ -16,6 +17,14 @@ export default function LoginPage() {
   const [error,    setError]    = useState('')
   const [attempts, setAttempts] = useState(0)
   const [lockedUntil, setLockedUntil] = useState(null)
+  // Why the user ended up here, if they were signed out automatically.
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    const reason = takeSignoutReason()
+    if (reason === 'idle')   setNotice(`You were signed out after ${IDLE_MS / 60000} minutes of inactivity.`)
+    if (reason === 'closed') setNotice('You were signed out because the browser was closed.')
+  }, [])
 
   const isLocked = lockedUntil && Date.now() < lockedUntil
   const remaining = isLocked ? Math.ceil((lockedUntil - Date.now()) / 60000) : 0
@@ -40,6 +49,7 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
+      markSessionStart()   // only a real sign-in starts the session clocks
       router.push('/')
     } catch {
       setError('Something went wrong. Please try again.')
@@ -85,6 +95,15 @@ export default function LoginPage() {
               className={inp}
             />
           </div>
+
+          {notice && !error && (
+            <div className="flex items-start gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+              <svg className="w-4 h-4 text-indigo-500 shrink-0 mt-px" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 7.5V12l3 2" />
+              </svg>
+              <p className="text-xs text-indigo-700 font-medium leading-relaxed">{notice}</p>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 p-3 bg-red-500/[0.08] border border-red-500/20 rounded-xl">

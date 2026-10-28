@@ -641,6 +641,15 @@ export default function ACHPage() {
                   </svg>
                   Zero Payments
                 </Link>
+                <Link
+                  href="/archive"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m16.5 0h-16.5m16.5 0a1.5 1.5 0 0 0 0-3h-16.5a1.5 1.5 0 0 0 0 3m6.75 4.5h3"/>
+                  </svg>
+                  Archive
+                </Link>
                 {can(profile, 'ach_add') && (
                   <button onClick={() => setModal(true)} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">

@@ -70,6 +70,7 @@ function isAllowed(profile, pathname) {
   }
   if (pathname === '/ach'            && !profile?.can_view_ach)       return false
   if (pathname === '/zero-payments'  && !profile?.can_view_ach)       return false
+  if (pathname === '/archive'        && !profile?.can_view_ach)       return false
   if (pathname === '/expenditure'    && !profile?.can_view_budgeting) return false
   if (pathname === '/hygiene'        && !profile?.can_view_hygiene)   return false
   // startsWith, not equality — '/admin/activity-log' must be gated too

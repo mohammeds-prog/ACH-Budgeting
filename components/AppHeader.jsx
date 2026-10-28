@@ -8,9 +8,27 @@ import { useProfile } from '@/lib/profileContext'
 const PAGE_LABELS = {
   '/ach': 'ACH Documents',
   '/zero-payments': 'Zero Payments',
+  '/archive': 'ACH Archive',
+  '/hygiene': 'Hygiene Utilization',
   '/expenditure': 'Supply Budget',
   '/admin': 'User Management',
   '/admin/activity-log': 'Activity Log',
+}
+
+// Pages reached from inside another page show that page as the middle step,
+// so "back" goes where the user actually came from: Home › ACH Documents ›
+// ACH Archive, not straight to Home.
+const PARENTS = {
+  '/archive':       { href: '/ach', label: 'ACH Documents' },
+  '/zero-payments': { href: '/ach', label: 'ACH Documents' },
+}
+
+function Chevron() {
+  return (
+    <svg className="w-3.5 h-3.5 text-slate-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6"/>
+    </svg>
+  )
 }
 
 export default function AppHeader() {
@@ -38,11 +56,21 @@ export default function AppHeader() {
           Home
         </Link>
 
+        {PARENTS[path] && (
+          <>
+            <Chevron />
+            <Link
+              href={PARENTS[path].href}
+              className="px-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-violet-100/60 transition-all"
+            >
+              {PARENTS[path].label}
+            </Link>
+          </>
+        )}
+
         {pageLabel && (
           <>
-            <svg className="w-3.5 h-3.5 text-slate-300 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6"/>
-            </svg>
+            <Chevron />
             <span className="text-sm font-semibold text-slate-900">{pageLabel}</span>
           </>
         )}

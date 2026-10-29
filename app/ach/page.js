@@ -6,6 +6,7 @@ import Link from 'next/link'
 import AppHeader from '@/components/AppHeader'
 import Pager from '@/components/Pager'
 import LoadError from '@/components/LoadError'
+import ArchiveMatches from '@/components/ArchiveMatches'
 import FilterBar from '@/components/FilterBar'
 import ACHTable from '@/components/ACHTable'
 import EntryModal from '@/components/EntryModal'
@@ -816,6 +817,16 @@ export default function ACHPage() {
               Transfer Complete {!loading && <span className="ml-0.5 opacity-60">({tcFiltered.length})</span>}
             </button>
           </div>
+
+          <ArchiveMatches
+            search={filters.search}
+            amount={filters.amount}
+            from={filters.from}
+            to={filters.to}
+            month={filters.month}
+            year={filters.year}
+            insurance={filters.insurance}
+          />
 
           {loading ? (
             <div className="glass-card rounded-2xl flex items-center justify-center py-24">

@@ -10,7 +10,7 @@ import ImportModal, { parseFlexDate, parseAmount } from '@/components/ImportModa
 import { extractInsuranceName } from '@/lib/achParser'
 import { excludeNonInsurance, bankAccountFromFileName } from '@/lib/chaseImport'
 import {
-  ARCHIVE_PAGE_SIZE, searchArchive, fetchAllMatching, getArchiveSummary, getArchiveFilterOptions,
+  ARCHIVE_PAGE_SIZE, searchArchive, fetchAllMatching, getArchiveSummary, getArchiveFilterOptions, getArchiveTotals,
   uploadArchiveRows, deleteMatching, hasAnyFilter, searchTerms, parseAmountFilter,
 } from '@/lib/archiveStorage'
 import { exportArchiveToExcel } from '@/lib/exportArchive'
@@ -71,6 +71,7 @@ export default function ArchivePage() {
   const [loadError, setLoadError] = useState('')
 
   const [summary, setSummary]   = useState(null)
+  const [totals, setTotals]     = useState(null)   // follows the current search
   const [options, setOptions]   = useState({ accounts: [], insurers: [] })
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -78,6 +79,21 @@ export default function ArchivePage() {
   const [notice, setNotice]     = useState('')
   const [exporting, setExporting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  // Arriving from the ACH tracker's "Also in the Archive" panel: the link
+  // carries the search, so open already filtered. Read on mount (not during
+  // render) so the server-rendered page and the browser agree.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const fromUrl = { ...EMPTY_FILTERS }
+    for (const k of ['q', 'amount', 'from', 'to', 'insurance', 'bankAccount', 'details']) {
+      if (p.get(k)) fromUrl[k] = p.get(k)
+    }
+    if (Object.values(fromUrl).some(Boolean)) {
+      setFilters(fromUrl)
+      setApplied(fromUrl)
+    }
+  }, [])
 
   // Typing updates the box immediately; the query waits for a pause.
   useEffect(() => {
@@ -92,6 +108,14 @@ export default function ArchivePage() {
     getArchiveSummary().then(setSummary).catch(() => setSummary(null))
     getArchiveFilterOptions().then(setOptions).catch(() => {})
   }, [refreshKey])
+
+  const totalsSeq = useRef(0)
+  useEffect(() => {
+    const seq = ++totalsSeq.current
+    getArchiveTotals(applied)
+      .then((t) => { if (seq === totalsSeq.current) setTotals(t) })
+      .catch(() => { if (seq === totalsSeq.current) setTotals(null) })
+  }, [applied, refreshKey])
 
   // Only the newest request may update the table — a slow early response must
   // never overwrite the results of what the user typed after it.
@@ -203,10 +227,15 @@ export default function ArchivePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-7 max-w-3xl">
-                <Stat label="Payments archived" value={summary ? summary.total.toLocaleString() : '—'} />
-                <Stat label="Covers" value={summary?.first ? `${isoToUS(summary.first)} – ${isoToUS(summary.last)}` : '—'} small />
-                <Stat label="Bank accounts" value={options.accounts.length ? options.accounts.join(', ') : '—'} small />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-7 max-w-4xl">
+                <Stat label={filtered ? 'Matching payments' : 'Payments archived'}
+                  value={(totals ?? summary) ? (totals?.payments ?? summary?.total ?? 0).toLocaleString() : '—'} />
+                <Stat label={filtered ? 'Matching total' : 'Total amount'}
+                  value={totals ? fmtMoney(totals.total) : '—'}
+                  hint={totals ? undefined : 'Run supabase/ach_archive.sql again to enable totals'} />
+                <Stat label="Bank accounts"
+                  value={options.accounts.length ? options.accounts.length.toLocaleString() : '—'}
+                  hint={options.accounts.length ? options.accounts.join(', ') : undefined} />
               </div>
             </div>
           </div>
@@ -428,11 +457,11 @@ function DeleteResultsModal({ count, onCancel, onConfirm }) {
   )
 }
 
-function Stat({ label, value, small }) {
+function Stat({ label, value, hint }) {
   return (
-    <div className="glass-card rounded-2xl px-5 py-4">
+    <div className="glass-card rounded-2xl px-5 py-4" title={hint}>
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
-      <p className={`${small ? 'text-base' : 'text-2xl'} font-bold mt-1 tabular-nums text-slate-900 truncate`} title={typeof value === 'string' ? value : undefined}>{value}</p>
+      <p className="text-2xl font-bold mt-1 tabular-nums text-slate-900 truncate">{value}</p>
     </div>
   )
 }

@@ -94,3 +94,37 @@ create policy archive_delete on public.ach_archive
   using (can_manage_archive());
 
 -- No UPDATE policy on purpose: archived rows are a record, never edited.
+
+
+-- ── 6. Totals for the header cards ─────────────────────────────────────────
+-- Count, dollar total and date span of whatever the user is looking at — the
+-- whole archive, or just their current search. Adding up 16,000+ amounts in
+-- the browser would mean downloading every row; the database does it in one
+-- step. SECURITY INVOKER (the default): the caller's row-level security still
+-- applies, so nobody gets totals over rows they couldn't see.
+create or replace function public.archive_totals(
+  p_terms      text[]  default '{}',
+  p_amount_min numeric default null,
+  p_amount_max numeric default null,
+  p_from       date    default null,
+  p_to         date    default null,
+  p_insurance  text    default null,
+  p_bank       text    default null,
+  p_details    text    default null
+)
+returns table (payments bigint, total numeric, first_date date, last_date date)
+language sql
+stable
+as $$
+  select count(*), coalesce(sum(amount), 0), min(posting_date), max(posting_date)
+    from public.ach_archive a
+   where (cardinality(p_terms) = 0
+          or a.description ilike all (select '%' || t || '%' from unnest(p_terms) as t))
+     and (p_amount_min is null or a.amount >= p_amount_min)
+     and (p_amount_max is null or a.amount <  p_amount_max)
+     and (p_from       is null or a.posting_date >= p_from)
+     and (p_to         is null or a.posting_date <= p_to)
+     and (p_insurance  is null or a.insurance_name = p_insurance)
+     and (p_bank       is null or a.bank_account   = p_bank)
+     and (p_details    is null or a.details        = p_details)
+$$;

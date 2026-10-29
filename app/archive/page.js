@@ -8,6 +8,7 @@ import DateInput, { isoToUS } from '@/components/DateInput'
 import LoadError from '@/components/LoadError'
 import ImportModal, { parseFlexDate, parseAmount } from '@/components/ImportModal'
 import { extractInsuranceName } from '@/lib/achParser'
+import { excludeNonInsurance, bankAccountFromFileName } from '@/lib/chaseImport'
 import {
   ARCHIVE_PAGE_SIZE, searchArchive, fetchAllMatching, getArchiveSummary, getArchiveFilterOptions,
   uploadArchiveRows, deleteMatching, hasAnyFilter, searchTerms, parseAmountFilter,
@@ -52,13 +53,6 @@ function Highlight({ text, terms }) {
       ? <mark key={i} className="bg-amber-100 text-slate-900 rounded px-0.5">{p}</mark>
       : <span key={i}>{p}</span>
   )
-}
-
-// Chase names its exports "Chase8209_Activity_20260901.csv" — the digits after
-// "Chase" are the account, and the export itself has no account column.
-function deriveFromFileName(fileName) {
-  const m = /chase[^0-9]*(\d{4,})/i.exec(fileName || '')
-  return m ? { bankAccount: m[1] } : {}
 }
 
 export default function ArchivePage() {
@@ -355,7 +349,10 @@ export default function ArchivePage() {
         <ImportModal
           title="Upload to the ACH Archive"
           subtitle="Chase activity export (CSV or Excel). Rows already in the archive are skipped, so overlapping months are safe to re-upload."
-          deriveFromFileName={deriveFromFileName}
+          deriveFromFileName={bankAccountFromFileName}
+          // Same rule as the ACH tracker: 5/3 Bankcard, Synchrony and Cherry
+          // deposits are skipped (and listed as skipped, never silently).
+          excludeRow={excludeNonInsurance}
           onClose={() => setImportOpen(false)}
           onImport={handleImport}
           postProcess={(entry) => {

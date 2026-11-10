@@ -42,7 +42,7 @@ export async function POST(request) {
   }
 
   const VALID_ROLES = ['admin', 'management', 'user', 'viewer']
-  const { email, full_name, password, role, can_view_ach, can_view_budgeting, can_view_hygiene } = await request.json()
+  const { email, full_name, password, role, can_view_ach, can_view_budgeting, can_view_hygiene, can_view_zero_payments } = await request.json()
   if (!email || !password) {
     return NextResponse.json({ error: 'email and password are required' }, { status: 400 })
   }
@@ -61,7 +61,7 @@ export async function POST(request) {
 
   if (authError) return NextResponse.json({ error: authError.message }, { status: 400 })
 
-  const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+  const row = {
     id: user.id,
     email,
     full_name: full_name || null,
@@ -72,7 +72,15 @@ export async function POST(request) {
     can_view_ach:        !!can_view_ach,
     can_view_budgeting:  !!can_view_budgeting,
     can_view_hygiene:    !!can_view_hygiene,
-  })
+    // Defaults to the ACH switch when the form didn't send one.
+    can_view_zero_payments: can_view_zero_payments === undefined ? !!can_view_ach : !!can_view_zero_payments,
+  }
+  let { error: profileError } = await supabaseAdmin.from('profiles').upsert(row)
+  // Before supabase/zero_payments_access.sql is run the column doesn't exist.
+  if (profileError && /can_view_zero_payments/.test(profileError.message || '')) {
+    const { can_view_zero_payments: _drop, ...rest } = row
+    ;({ error: profileError } = await supabaseAdmin.from('profiles').upsert(rest))
+  }
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
 
@@ -103,13 +111,16 @@ export async function PUT(request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const VALID_KEYS = ['role', 'can_view_ach', 'can_view_budgeting', 'can_view_hygiene']
+  const VALID_KEYS = ['role', 'can_view_ach', 'can_view_budgeting', 'can_view_hygiene', 'can_view_zero_payments']
   const safeUpdates = Object.fromEntries(Object.entries(updates).filter(([k]) => VALID_KEYS.includes(k)))
   if (Object.keys(safeUpdates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
   }
 
   const { error } = await supabaseAdmin.from('profiles').update(safeUpdates).eq('id', userId)
+  if (error && /can_view_zero_payments/.test(error.message || '')) {
+    return NextResponse.json({ error: 'The Zero Payments switch needs supabase/zero_payments_access.sql to be run first.' }, { status: 400 })
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   return NextResponse.json({ success: true })

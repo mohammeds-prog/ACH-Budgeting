@@ -8,3 +8,9 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Dentrix exports read by /production on this computer only. The aging
+# report holds patient names and birth dates, so this folder must never be
+# committed or deployed.
+/reports/
+.next-check/

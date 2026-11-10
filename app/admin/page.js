@@ -6,7 +6,7 @@ import AppHeader from '@/components/AppHeader'
 import { supabase } from '@/lib/supabase'
 import { useProfile } from '@/lib/profileContext'
 import { logActivity } from '@/lib/activityLog'
-import { ROLES, getRoleInfo } from '@/lib/permissions'
+import { ROLES, getRoleInfo, canSeeZeroPayments } from '@/lib/permissions'
 import { fetchAllRows } from '@/lib/fetchAll'
 
 function RoleSelect({ value, onChange, disabled = false, filterAdmin = false }) {
@@ -119,7 +119,7 @@ function Toggle({ checked, onChange, color = 'violet', disabled = false }) {
   // track colour at all, leaving it invisible against the page background.
   // Explicit map, not a ternary chain: an unknown colour must be obvious rather
   // than silently rendering as violet.
-  const ON_COLORS = { indigo: 'bg-indigo-500', violet: 'bg-violet-500', teal: 'bg-teal-500' }
+  const ON_COLORS = { indigo: 'bg-indigo-500', violet: 'bg-violet-500', teal: 'bg-teal-500', sky: 'bg-sky-500' }
   const on = ON_COLORS[color] || ON_COLORS.violet
   return (
     <button
@@ -214,7 +214,7 @@ function SetPasswordModal({ user, onClose }) {
 }
 
 function AddUserModal({ onClose, onCreated, isManagement = false }) {
-  const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'viewer', can_view_ach: true, can_view_budgeting: true, can_view_hygiene: false })
+  const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'viewer', can_view_ach: true, can_view_zero_payments: true, can_view_budgeting: true, can_view_hygiene: false })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [showPw, setShowPw] = useState(false)
@@ -233,7 +233,7 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           email: form.email, full_name: form.full_name, password: form.password, role: form.role,
-          can_view_ach: form.can_view_ach, can_view_budgeting: form.can_view_budgeting, can_view_hygiene: form.can_view_hygiene,
+          can_view_ach: form.can_view_ach, can_view_zero_payments: form.can_view_zero_payments, can_view_budgeting: form.can_view_budgeting, can_view_hygiene: form.can_view_hygiene,
         }),
       })
       const json = await res.json()
@@ -334,6 +334,15 @@ function AddUserModal({ onClose, onCreated, isManagement = false }) {
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Toggle
+                      checked={roleGrantsAll || form.can_view_zero_payments}
+                      onChange={(v) => set('can_view_zero_payments', v)}
+                      color="sky"
+                      disabled={roleGrantsAll}
+                    />
+                    <span className={`text-xs ${roleGrantsAll || form.can_view_zero_payments ? 'text-sky-700' : 'text-slate-500'}`}>Zero Payments</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Toggle
                       checked={roleGrantsAll || form.can_view_budgeting}
                       onChange={(v) => set('can_view_budgeting', v)}
                       color="violet"
@@ -415,6 +424,7 @@ export default function AdminPage() {
     setProfiles((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p))
     if ('role' in updates) logActivity({ action: 'update', module: 'Admin', description: `Changed ${name}'s role to ${updates.role}`, metadata: { userId: id, role: updates.role } })
     if ('can_view_ach' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_ach ? 'Enabled' : 'Disabled'} ACH access for ${name}`, metadata: { userId: id, can_view_ach: updates.can_view_ach } })
+    if ('can_view_zero_payments' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_zero_payments ? 'Enabled' : 'Disabled'} Zero Payments access for ${name}`, metadata: { userId: id, can_view_zero_payments: updates.can_view_zero_payments } })
     if ('can_view_budgeting' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_budgeting ? 'Enabled' : 'Disabled'} Budget access for ${name}`, metadata: { userId: id, can_view_budgeting: updates.can_view_budgeting } })
     if ('can_view_hygiene' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_hygiene ? 'Enabled' : 'Disabled'} Hygiene access for ${name}`, metadata: { userId: id, can_view_hygiene: updates.can_view_hygiene } })
   }
@@ -525,6 +535,15 @@ export default function AdminPage() {
                                   disabled={(!isAdmin && !isManagement) || p.role === 'admin' || p.role === 'management'}
                                 />
                                 <span className={`text-xs ${p.role === 'admin' || p.role === 'management' || p.can_view_ach ? 'text-indigo-700' : 'text-slate-500'}`}>ACH</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Toggle
+                                  checked={canSeeZeroPayments(p)}
+                                  onChange={(v) => updateProfile(p.id, { can_view_zero_payments: v })}
+                                  color="sky"
+                                  disabled={(!isAdmin && !isManagement) || p.role === 'admin' || p.role === 'management'}
+                                />
+                                <span className={`text-xs ${canSeeZeroPayments(p) ? 'text-sky-700' : 'text-slate-500'}`}>Zero Payments</span>
                               </label>
                               <label className="flex items-center gap-2 cursor-pointer">
                                 <Toggle

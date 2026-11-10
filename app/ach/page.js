@@ -23,7 +23,7 @@ import { exportAchToExcel } from '@/lib/exportAch'
 import { diffEntry, ACH_FIELDS } from '@/lib/entryActivity'
 import { extractInsuranceName } from '@/lib/achParser'
 import { useProfile } from '@/lib/profileContext'
-import { can } from '@/lib/permissions'
+import { can, canSeeZeroPayments } from '@/lib/permissions'
 
 const ALL = 'all'
 const CUSTOM = 'custom'
@@ -607,6 +607,7 @@ export default function ACHPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 7.5 12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
                   Export
                 </button>
+                {canSeeZeroPayments(profile) && (
                 <Link
                   href="/zero-payments"
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"
@@ -616,6 +617,7 @@ export default function ACHPage() {
                   </svg>
                   Zero Payments
                 </Link>
+                )}
                 <Link
                   href="/archive"
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"

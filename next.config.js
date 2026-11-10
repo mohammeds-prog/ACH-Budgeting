@@ -17,6 +17,11 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  // A check build can go to its own folder (NEXT_DIST_DIR) so it never
+  // disturbs a running dev server's .next.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
+  // Runs instrumentation.js at server start (warms the reports cache).
+  experimental: { instrumentationHook: true },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },

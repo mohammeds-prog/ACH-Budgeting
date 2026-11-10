@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ProfileContext } from '@/lib/profileContext'
-import { can } from '@/lib/permissions'
+import { can, canSeeZeroPayments } from '@/lib/permissions'
 import SessionGuard from '@/components/SessionGuard'
 import { expiredWhileAway, clearSessionMarks, setSignoutReason } from '@/lib/session'
 
@@ -69,10 +69,14 @@ function isAllowed(profile, pathname) {
     return true
   }
   if (pathname === '/ach'            && !profile?.can_view_ach)       return false
-  if (pathname === '/zero-payments'  && !profile?.can_view_ach)       return false
+  if (pathname === '/zero-payments'  && !canSeeZeroPayments(profile)) return false
   if (pathname === '/archive'        && !profile?.can_view_ach)       return false
   if (pathname === '/expenditure'    && !profile?.can_view_budgeting) return false
   if (pathname === '/hygiene'        && !profile?.can_view_hygiene)   return false
+  // Provider pay-level numbers: owners and management only.
+  if (pathname === '/production') return false
+  if (pathname === '/retention') return false
+  if (pathname === '/analysis') return false
   // startsWith, not equality — '/admin/activity-log' must be gated too
   if (pathname.startsWith('/admin')  && !can(profile, 'admin_panel')) return false
   return true

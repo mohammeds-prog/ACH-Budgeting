@@ -1,10 +1,24 @@
 'use client'
 
+import { canSeeZeroPayments } from '@/lib/permissions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import TuskLogo from '@/components/TuskLogo'
 import { supabase } from '@/lib/supabase'
 import { useProfile } from '@/lib/profileContext'
+
+const ZERO_SECTION = {
+  key: 'zero',
+  href: '/zero-payments',
+  title: 'Zero Payments',
+  description: 'Claims insurance paid $0 on: track them, attach the EOB, and follow them up.',
+  icon: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><path d="M8 12h8" />
+    </svg>
+  ),
+  accent: 'from-sky-500 to-indigo-600',
+}
 
 const ALL_SECTIONS = [
   {
@@ -20,6 +34,7 @@ const ALL_SECTIONS = [
     ),
     accent: 'from-indigo-500 to-violet-500',
   },
+  ZERO_SECTION,
   {
     key: 'budgeting',
     href: '/expenditure',
@@ -88,6 +103,9 @@ export default function HomePage() {
   const alwaysOn = profile?.role === 'admin' || profile?.role === 'management'
   const sections = ALL_SECTIONS.filter((s) => {
     if (s.key === 'ach')       return alwaysOn || profile?.can_view_ach
+    // Its own card only for someone with Zero Payments but not ACH; everyone
+    // else reaches it from the ACH page, as before.
+    if (s.key === 'zero')      return !alwaysOn && !profile?.can_view_ach && canSeeZeroPayments(profile)
     if (s.key === 'budgeting') return alwaysOn || profile?.can_view_budgeting
     if (s.key === 'hygiene')   return alwaysOn || profile?.can_view_hygiene
     return true
@@ -128,6 +146,19 @@ export default function HomePage() {
             <p className="text-slate-500 text-base leading-relaxed max-w-sm mx-auto">
               Track ACH documents, clinic supply budgets, and hygiene utilization.
             </p>
+            {(profile?.role === 'admin' || profile?.role === 'management') && (
+              <Link href="/analysis"
+                className="group mt-8 inline-flex items-center gap-4 pl-5 pr-6 py-4 rounded-2xl text-left text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+                <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/15">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                </span>
+                <span>
+                  <span className="block text-lg font-bold leading-tight">Analysis</span>
+                  <span className="block text-sm text-indigo-100">Provider production and patient retention</span>
+                </span>
+                <svg className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3"/></svg>
+              </Link>
+            )}
           </div>
 
           {allCards.length === 0 ? (

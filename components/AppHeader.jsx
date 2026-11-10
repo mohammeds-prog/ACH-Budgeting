@@ -10,6 +10,9 @@ const PAGE_LABELS = {
   '/zero-payments': 'Zero Payments',
   '/archive': 'ACH Archive',
   '/hygiene': 'Hygiene Utilization',
+  '/production': 'Provider Production',
+  '/retention': 'Patient Retention',
+  '/analysis': 'Analysis',
   '/expenditure': 'Supply Budget',
   '/admin': 'User Management',
   '/admin/activity-log': 'Activity Log',
@@ -56,7 +59,7 @@ export default function AppHeader() {
           Home
         </Link>
 
-        {PARENTS[path] && (
+        {PARENTS[path] && (path !== '/zero-payments' || profile?.role === 'admin' || profile?.role === 'management' || profile?.can_view_ach) && (
           <>
             <Chevron />
             <Link

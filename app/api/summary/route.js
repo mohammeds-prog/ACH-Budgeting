@@ -13,7 +13,7 @@ export async function GET(request) {
     const refused = await refuseUnlessOwner(request)
     if (refused) return refused
     const q = new URL(request.url).searchParams
-    return NextResponse.json(await buildSummary(await loadReports(), { from: q.get('from'), to: q.get('to') }))
+    return NextResponse.json(await buildSummary(await loadReports(), { from: q.get('from'), to: q.get('to'), location: q.get('location') || null, provider: q.get('provider') || null }))
   } catch (e) {
     return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 })
   }

@@ -28,6 +28,10 @@ export default function OwnerSummary({ onGo }) {
   const [custom, setCustom] = useState({ from: '', to: '' })
   const [months, setMonths] = useState([])          // every month with data, from the first answer
   const [lastComplete, setLastComplete] = useState('')
+  // Narrow to one office or one provider ('' = all). Picking one clears the other.
+  const [office, setOffice] = useState('')
+  const [provider, setProvider] = useState('')
+  const [options, setOptions] = useState({ locations: [], providers: [] })
 
   const latest = months[months.length - 1] || ''
   const presets = useMemo(() => {
@@ -54,26 +58,37 @@ export default function OwnerSummary({ onGo }) {
     ;(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const q = range ? `?from=${range.from}&to=${range.to}` : ''
+        const qs = new URLSearchParams()
+        if (range) { qs.set('from', range.from); qs.set('to', range.to) }
+        if (office) qs.set('location', office)
+        if (provider) qs.set('provider', provider)
+        const q = qs.toString() ? `?${qs}` : ''
         const res = await fetch(`/api/summary${q}`, { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
         const json = await res.json().catch(() => ({}))
         if (cancelled) return
         if (!res.ok) return setState({ status: 'error', error: json.error || `HTTP ${res.status}` })
         if (json.months?.length) setMonths(json.months)
         if (json.lastComplete) setLastComplete(json.lastComplete)
+        if (json.filterOptions && !office && !provider) setOptions(json.filterOptions)
         setState({ status: 'ready', data: json, readAt: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) })
       } catch (e) {
         if (!cancelled) setState({ status: 'error', error: e?.message || 'network error' })
       }
     })()
     return () => { cancelled = true }
-  }, [reload, range?.from, range?.to])
+  }, [reload, range?.from, range?.to, office, provider])
 
   const d = state.data
   const periodName = (from, to) => (from === to ? periodLabel(from) : `${periodLabel(from)} \u2013 ${periodLabel(to)}`)
   const monthOptions = [...months].reverse().map((p) => ({ value: p, label: periodLabel(p) + (p === latest && latest > lastComplete ? ' (so far)' : '') }))
   const controls = months.length > 0 && (
     <div className="flex flex-wrap items-center gap-2">
+      <Select value={office} onChange={(v) => { setOffice(v || ''); if (v) setProvider('') }} placeholder={null}
+        options={[{ value: '', label: 'All offices' }, ...options.locations.map((l) => ({ value: l, label: shortLocation(l) }))]} />
+      <Select value={provider} onChange={(v) => { setProvider(v || ''); if (v) setOffice('') }} placeholder={null} wide
+        options={[{ value: '', label: 'All providers' },
+          ...options.providers.filter((x) => x.role === 'Dentist').map((x) => ({ value: x.name, label: x.name })),
+          ...options.providers.filter((x) => x.role === 'Hygienist').map((x) => ({ value: x.name, label: `${x.name} \u00b7 hygiene` }))]} />
       <Select value={pick} onChange={(v) => v && setPick(v)} placeholder={null} wide
         options={[
           ...presets.map(({ value, label }) => ({ value, label })),
@@ -91,7 +106,7 @@ export default function OwnerSummary({ onGo }) {
   )
   const header = (extra = {}) => (
     <ViewHeader
-      title={d ? `${periodName(d.from, d.to)}${d.partial ? ' so far' : ''} at a glance` : 'At a glance'}
+      title={d ? `${d.location ? shortLocation(d.location) + ' \u00b7 ' : d.provider ? d.provider + ' \u00b7 ' : ''}${periodName(d.from, d.to)}${d.partial ? ' so far' : ''} at a glance` : 'At a glance'}
       controls={controls}
       subtitle="Are we on track? Click any number to see why."
       busy={state.status === 'loading' || state.refreshing}
@@ -125,7 +140,7 @@ export default function OwnerSummary({ onGo }) {
       </div>
 
       {/* ── Insurance A/R by age, right under the scorecards ── */}
-      {d.arAging && <ArAging a={d.arAging} onGo={onGo} over90={tiles.over90} />}
+      {d.arAging && <ArAging key={d.location || 'all'} a={d.arAging} onGo={onGo} over90={tiles.over90} initial={d.location} />}
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
         {/* ── Offices side by side ── */}
@@ -152,7 +167,7 @@ export default function OwnerSummary({ onGo }) {
               </thead>
               <tbody>
                 {d.offices.map((o) => (
-                  <tr key={o.name} className="text-right tabular-nums border-t border-slate-100">
+                  <tr key={o.name} className={`text-right tabular-nums border-t border-slate-100 ${o.selected ? 'bg-indigo-50/70' : ''}`}>
                     <td className="text-left py-2 pl-1 font-semibold text-slate-900 whitespace-nowrap">{shortLocation(o.name)}</td>
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-2.5">
@@ -285,6 +300,15 @@ function Verdict({ d, prevName }) {
 }
 
 function Tile({ k, prevName, lyName, onGo }) {
+  if (k.unavailable) {
+    return (
+      <div className="h-full flex flex-col rounded-xl bg-white/60 border border-dashed border-slate-200 px-3 pt-2.5 pb-2.5 text-left">
+        <p className="text-[11px] font-semibold text-slate-400 truncate">{k.label}</p>
+        <p className="mt-1 text-[22px] leading-none font-semibold text-slate-300">{'\u2014'}</p>
+        <p className="mt-auto pt-2 text-[10.5px] text-slate-400 leading-snug">{k.unavailable}</p>
+      </div>
+    )
+  }
   const fmt = (v) => (v == null ? '—' : k.money ? moneyShort(v) : k.percent ? pctText(v) : Math.round(v).toLocaleString('en-US'))
   // A running month compares its pace (so far, scaled to a full month).
   const cmp = k.pace != null ? k.pace : k.value
@@ -413,10 +437,10 @@ const AGE = [
 ]
 const pct2 = (v) => (v == null ? '\u2014' : `${v.toFixed(2)}%`)
 
-function ArAging({ a, onGo, over90 }) {
+function ArAging({ a, onGo, over90, initial }) {
   // Tabs: all offices together first, then each office (biggest first).
   const tabs = [a.group, ...a.offices]
-  const [pick, setPick] = useState(a.group.name)
+  const [pick, setPick] = useState(initial && a.offices.some((o) => o.name === initial) ? initial : a.group.name)
   const o = tabs.find((t) => t.name === pick) || a.group
   const tb = o.total.billed || 0, te = o.total.expected || 0
   const o90 = (f) => (o.buckets['91-120']?.[f] || 0) + (o.buckets['120+']?.[f] || 0)

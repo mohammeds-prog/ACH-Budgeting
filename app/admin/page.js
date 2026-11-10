@@ -407,9 +407,19 @@ export default function AdminPage() {
 
   useEffect(() => { load() }, [])
 
+  // A switch moves at once and saves in the background; if the save fails it
+  // flips back and says why (it used to wait on the server, and fail silently).
+  const [saveError, setSaveError] = useState(null)
   async function updateProfile(id, updates) {
     const target = profiles.find((p) => p.id === id)
     const name = target?.full_name || target?.email || id
+    const before = Object.fromEntries(Object.keys(updates).map((k) => [k, target?.[k]]))
+    setProfiles((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p))
+    setSaveError(null)
+    const undo = (msg) => {
+      setProfiles((prev) => prev.map((p) => p.id === id ? { ...p, ...before } : p))
+      setSaveError(`Couldn\u2019t save the change for ${name}: ${msg}`)
+    }
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/admin/users', {
@@ -417,11 +427,10 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ userId: id, ...updates }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (res.status === 401) { await supabase.auth.signOut(); router.replace('/login'); return }
-      if (!res.ok) { console.error('updateProfile failed:', res.status, json); return }
-    } catch (err) { console.error('updateProfile error:', err); return }
-    setProfiles((prev) => prev.map((p) => p.id === id ? { ...p, ...updates } : p))
+      if (!res.ok) { undo(json.error || `error ${res.status}`); return }
+    } catch (err) { undo(err.message || 'network error'); return }
     if ('role' in updates) logActivity({ action: 'update', module: 'Admin', description: `Changed ${name}'s role to ${updates.role}`, metadata: { userId: id, role: updates.role } })
     if ('can_view_ach' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_ach ? 'Enabled' : 'Disabled'} ACH access for ${name}`, metadata: { userId: id, can_view_ach: updates.can_view_ach } })
     if ('can_view_zero_payments' in updates) logActivity({ action: 'update', module: 'Admin', description: `${updates.can_view_zero_payments ? 'Enabled' : 'Disabled'} Zero Payments access for ${name}`, metadata: { userId: id, can_view_zero_payments: updates.can_view_zero_payments } })
@@ -485,6 +494,12 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
+                {saveError && (
+                  <div className="mx-4 mt-3 flex items-start justify-between gap-3 rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-[12.5px] text-red-700">
+                    <span>{saveError}</span>
+                    <button onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-700">{'✕'}</button>
+                  </div>
+                )}
                 <table className="w-full min-w-[640px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-slate-100">

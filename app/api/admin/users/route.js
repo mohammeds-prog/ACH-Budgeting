@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false }, global: { fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' }) } }
 )
 
 async function getCallerProfile(request) {
@@ -12,7 +12,7 @@ async function getCallerProfile(request) {
   if (!token) return null
 
   // auth.getUser(jwt) silently fails when persistSession:false — call the REST API directly
-  const authRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
+  const authRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, { cache: 'no-store',
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

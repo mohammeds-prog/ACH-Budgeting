@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { goToAnalysis } from '@/lib/analysisNav'
-import { unverifiedNumbers, NUM_RE } from '@/lib/answerCheck'
+import { NUM_RE } from '@/lib/answerCheck'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "Ask" — the Analysis page's question box. A button at the bottom right opens
@@ -237,9 +237,7 @@ function Answer({ m, onOpen }) {
   const [shown, setShown] = useState(null)
   const [copied, setCopied] = useState(false)
   const sources = (m.sources || []).filter((x) => x.tool !== 'data_overview')
-  const pool = new Set(m.sources ? unverifiedNumbers(m.content, m.sources) : [])
   const show = (n) => setShown((cur) => (cur === n ? null : n))
-  const unchecked = pool.size
   const open = sources.find((x) => x.n === shown)
   const copy = () => {
     navigator.clipboard?.writeText(String(m.content || '').replace(/\[\d+(?:\s*,\s*\d+)*\]/g, '')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }).catch(() => {})
@@ -247,14 +245,8 @@ function Answer({ m, onOpen }) {
   return (
     <div className="space-y-2">
       <div className={`rounded-2xl rounded-tl-md bg-white border shadow-sm px-4 py-3.5 ${m.error ? 'border-red-200' : 'border-slate-200/80'}`}>
-        {unchecked > 0 && (
-          <p className="mb-2.5 flex items-start gap-2 text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">
-            <svg className="w-3.5 h-3.5 mt-px shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
-            <span>{unchecked} number{unchecked === 1 ? ' is' : 's are'} <span className="underline decoration-dotted decoration-amber-500 decoration-2 underline-offset-2">underlined</span>: not in the data this answer used {'—'} worked out or estimated. Check before relying on {unchecked === 1 ? 'it' : 'them'}.</span>
-          </p>
-        )}
         <div className={`chat-md text-[13.5px] leading-relaxed ${m.error ? 'text-red-600' : 'text-slate-700'}`}>
-          <Markdown text={m.content} onRef={sources.length ? show : null} known={new Set(sources.map((x) => x.n))} active={shown} pool={m.sources ? pool : null} />
+          <Markdown text={m.content} onRef={sources.length ? show : null} known={new Set(sources.map((x) => x.n))} active={shown} pool={null} />
         </div>
       </div>
 
@@ -286,7 +278,7 @@ function Answer({ m, onOpen }) {
             <button onClick={() => onOpen(open.link)}
               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-semibold hover:bg-slate-700">
               Open in Analysis {'→'}
-              <span className="font-normal text-slate-300">{[open.link.view === 'money' ? 'Money' : open.link.view === 'retention' ? 'Patient retention' : 'Hygiene', open.link.office?.replace(/^Valley View Dental /, ''), open.link.month, open.link.from && `${open.link.from} – ${open.link.to}`].filter(Boolean).join(' · ')}</span>
+              <span className="font-normal text-slate-300">{[open.link.view === 'summary' ? 'Summary' : open.link.view === 'money' ? 'Money' : open.link.view === 'retention' ? 'Patient retention' : open.link.view === 'doctors' ? 'Doctor production' : 'Hygiene', open.link.provider, open.link.office?.replace(/^Valley View Dental /, ''), open.link.from && open.link.to ? null : open.link.month, open.link.from && `${open.link.from} – ${open.link.to}`].filter(Boolean).join(' · ')}</span>
             </button>
           )}
         </div>

@@ -207,7 +207,7 @@ async function groqCall(messages, tools, toolChoice = 'auto') {
   for (const model of [GROQ_MODEL, GROQ_FALLBACK]) {
     for (let i = 0; i < GROQ_KEYS.length; i++) {
       const k = (groqStart + i) % GROQ_KEYS.length
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { cache: 'no-store',
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEYS[k]}` },
         // Lookups and comparisons don't need long reasoning; low is much faster.
@@ -223,7 +223,7 @@ async function groqCall(messages, tools, toolChoice = 'auto') {
   // Every key and both models are at their limit: wait once if it's short.
   if (shortest <= 15) {
     await new Promise((r) => setTimeout(r, shortest * 1000))
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { cache: 'no-store',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEYS[groqStart]}` },
       body: JSON.stringify({ model: GROQ_FALLBACK, messages, tools, tool_choice: toolChoice, temperature: 0.2, max_tokens: 1500, reasoning_effort: 'low' }),

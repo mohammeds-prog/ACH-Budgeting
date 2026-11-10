@@ -6,9 +6,9 @@ import AppHeader from '@/components/AppHeader'
 import ProductionPage from '@/app/production/page'
 import RetentionPage from '@/app/retention/page'
 import HygieneView from '@/components/HygieneView'
+import DoctorsView from '@/components/DoctorsView'
 import AssistantPanel from '@/components/AssistantPanel'
 import OwnerSummary from '@/components/OwnerSummary'
-import DataUpdate from '@/components/DataUpdate'
 import { useAnalysisTab } from '@/lib/analysisNav'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,12 +38,16 @@ const VIEWS = [
     icon: <><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" /></>,
   },
   {
-    key: 'hygiene', label: 'Hygiene', sub: 'Production per hygiene hour',
-    icon: <><path d="M12 3c-3 4-6 6.5-6 10a6 6 0 0 0 12 0c0-3.5-3-6-6-10z" /></>,
+    key: 'production', label: 'Production', sub: 'Doctors and hygiene',
+    icon: <><circle cx="12" cy="7" r="4" /><path d="M5 21v-1a7 7 0 0 1 14 0v1" /></>,
   },
 ]
 const KEYS = VIEWS.map((v) => v.key)
-const viewOf = (v) => (KEYS.includes(v) ? v : 'summary')
+// Production holds two sides; older links (?view=doctors / ?view=hygiene)
+// and chat links still land on the right one.
+const SIDES = ['doctors', 'hygiene']
+const viewOf = (v) => (SIDES.includes(v) ? 'production' : KEYS.includes(v) ? v : 'summary')
+const sideOf = (params) => (SIDES.includes(params.get('view')) ? params.get('view') : SIDES.includes(params.get('side')) ? params.get('side') : 'doctors')
 
 // useSearchParams needs a Suspense boundary to build.
 export default function AnalysisPage() {
@@ -54,23 +58,39 @@ function Analysis() {
   const router = useRouter()
   const params = useSearchParams()
   const [view, setView] = useState(viewOf(params.get('view')))
+  const [side, setSide] = useState(sideOf(params))
+  const [sidesSeen, setSidesSeen] = useState(() => new Set([sideOf(params)]))
   // Each view loads its reports only once it's first opened.
   const [seen, setSeen] = useState(() => new Set([viewOf(params.get('view'))]))
 
   useEffect(() => {
     const v = viewOf(params.get('view'))
     if (v !== view) setView(v)
+    if (v === 'production') pickSide(sideOf(params), false)
     setSeen((s) => (s.has(v) ? s : new Set([...s, v])))
   }, [params])
 
   // "Open in Analysis" from a chat answer switches to that view.
-  useAnalysisTab((v) => { if (KEYS.includes(v)) choose(v) })
+  useAnalysisTab((v) => { if (KEYS.includes(v) || SIDES.includes(v)) choose(v) })
 
+  // v: a tab, or 'doctors' / 'hygiene' for that side of Production.
   function choose(v) {
+    if (SIDES.includes(v)) {
+      setView('production')
+      setSeen((s) => (s.has('production') ? s : new Set([...s, 'production'])))
+      pickSide(v)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     setView(v)
     setSeen((s) => (s.has(v) ? s : new Set([...s, v])))
-    router.replace(v === 'summary' ? '/analysis' : `/analysis?view=${v}`, { scroll: false })
+    router.replace(v === 'summary' ? '/analysis' : v === 'production' ? `/analysis?view=production&side=${side}` : `/analysis?view=${v}`, { scroll: false })
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  function pickSide(s, push = true) {
+    setSide(s)
+    setSidesSeen((x) => (x.has(s) ? x : new Set([...x, s])))
+    if (push) router.replace(`/analysis?view=production&side=${s}`, { scroll: false })
   }
 
   return (
@@ -83,9 +103,8 @@ function Analysis() {
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Analysis</h1>
-                <p className="text-sm text-slate-500 mt-1">The practice in numbers: money, patients, and the hygiene chairs.</p>
+                <p className="text-sm text-slate-500 mt-1">The practice in numbers: money, patients, doctors and the hygiene chairs.</p>
               </div>
-              <DataUpdate />
             </div>
 
             {/* The switch between the views stays in reach while a view scrolls. */}
@@ -114,7 +133,21 @@ function Analysis() {
             <div hidden={view !== 'summary'}><OwnerSummary onGo={choose} /></div>
             {seen.has('money') && <div hidden={view !== 'money'}><ProductionPage embedded /></div>}
             {seen.has('retention') && <div hidden={view !== 'retention'}><RetentionPage embedded /></div>}
-            {seen.has('hygiene') && <div hidden={view !== 'hygiene'}><HygieneView /></div>}
+            {seen.has('production') && (
+              <div hidden={view !== 'production'} className="space-y-4">
+                {/* Doctors | Hygiene — each loads on first open and stays mounted. */}
+                <div role="tablist" aria-label="Production for" className="inline-flex gap-1 p-1 rounded-xl bg-white border border-slate-200 shadow-sm">
+                  {[['doctors', 'Doctors'], ['hygiene', 'Hygiene']].map(([k, label]) => (
+                    <button key={k} role="tab" aria-selected={side === k} onClick={() => pickSide(k)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${side === k ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {sidesSeen.has('doctors') && <div hidden={side !== 'doctors'}><DoctorsView /></div>}
+                {sidesSeen.has('hygiene') && <div hidden={side !== 'hygiene'}><HygieneView /></div>}
+              </div>
+            )}
             <AssistantPanel />
           </div>
         </div>

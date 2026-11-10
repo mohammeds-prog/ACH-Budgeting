@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import ViewHeader, { LoadingBlocks } from '@/components/ViewHeader'
 import { shortLocation } from '@/lib/constants'
 import { periodLabel } from '@/lib/dentrixReports'
+import { useAnalysisGoto } from '@/lib/analysisNav'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Summary — the owner's first screen: are we OK, what's off, who needs to act.
@@ -32,6 +33,18 @@ export default function OwnerSummary({ onGo }) {
   const [office, setOffice] = useState('')
   const [provider, setProvider] = useState('')
   const [options, setOptions] = useState({ locations: [], providers: [] })
+  // "Open in Analysis" from a chat answer: that provider (or office) and
+  // those months. A provider name from the chat may be partial ("Krupa").
+  useAnalysisGoto('summary', (g) => {
+    const q = String(g.provider || '').toLowerCase()
+    const prov = q ? (options.providers.find((x) => x.name.toLowerCase() === q) || options.providers.find((x) => x.name.toLowerCase().includes(q)))?.name : null
+    if (prov) { setProvider(prov); setOffice('') } else { setProvider(''); setOffice(options.locations.includes(g.office) ? g.office : '') }
+    const from = g.from || g.month, to = g.to || g.month
+    if (from && to) {
+      if (from === to) setPick(`m|${from}`)
+      else { setCustom({ from, to }); setPick('custom') }
+    }
+  }, options.locations.length > 0)
 
   const latest = months[months.length - 1] || ''
   const presets = useMemo(() => {
@@ -337,6 +350,17 @@ function Tile({ k, prevName, lyName, onGo }) {
       </p>
       {k.pace != null && <p className="text-[10.5px] text-slate-500 tabular-nums mt-1">on pace for <b className="font-semibold text-slate-700">{fmt(k.pace)}</b></p>}
       {comps.length > 0 && <p className="flex flex-wrap gap-1 mt-1.5 text-[10px] font-medium tabular-nums">{comps}</p>}
+      {k.sub && (
+        <p className="mt-1.5 flex items-baseline justify-between gap-2 rounded-md bg-slate-50 px-2 py-1 text-[11px]" title={k.sub.note}>
+          <span className="text-slate-500 truncate">{k.sub.label}</span>
+          <span className="tabular-nums whitespace-nowrap">
+            <b className="font-semibold text-slate-800">{fmt(k.sub.value)}</b>
+            {k.sub.prev != null && Math.abs(k.sub.value - k.sub.prev) >= 0.05 && (
+              <span className={`ml-1 text-[10px] ${k.sub.value >= k.sub.prev ? 'text-emerald-600' : 'text-red-600'}`}>{k.sub.value >= k.sub.prev ? '\u25B2' : '\u25BC'}{Math.abs(k.sub.value - k.sub.prev).toFixed(1)}</span>
+            )}
+          </span>
+        </p>
+      )}
       <div className="mt-auto pt-2">
         {k.trend?.some((x) => x.v != null)
           ? <Spark k={k} fmt={fmt} />

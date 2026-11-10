@@ -42,6 +42,7 @@ export default function RetentionPage({ embedded = false } = {}) {
   // A date range: a preset ("last 12 months") or custom from/to dates.
   const [custom, setCustom]     = useState({ from: '', to: '' })
   const [range, setRange]       = useState(null)   // { from, to, label, data } | { loading } | { error }
+  const [focus, setFocus]       = useState(null)   // { provider, office, offices, at } from a chat link
   // An uploaded report's visit index, for ranges without the server. Memory only.
   const uploadedIndex = useRef(null)
 
@@ -158,6 +159,8 @@ export default function RetentionPage({ embedded = false } = {}) {
 
   // A jump from a chat answer: the month it asked about, or its dates.
   useAnalysisGoto('retention', (g) => {
+    // Which provider or office the answer was about: opened and scrolled to.
+    if (g.provider || g.office || g.group_by === 'location') setFocus({ provider: g.provider || null, office: g.office || null, offices: g.group_by === 'location', at: Date.now() })
     if (!g.from || !g.to) return
     const m = g.from.slice(0, 7)
     const whole = g.from.endsWith('-01') && g.to.slice(0, 7) === m && Number(g.to.slice(8, 10)) >= 28
@@ -219,7 +222,7 @@ export default function RetentionPage({ embedded = false } = {}) {
                 </div>
               )
             ) : schedule && period ? (
-              <RetentionView schedule={schedule} period={isRange ? 'range' : period} range={isRange ? range : null} />
+              <RetentionView schedule={schedule} period={isRange ? 'range' : period} range={isRange ? range : null} focus={focus} />
             ) : busy ? <LoadingBlocks rows={4} /> : (
               <div className="glass-card rounded-2xl px-6 py-16 text-center">
                 <p className="text-sm font-semibold text-slate-800">No schedule report yet</p>

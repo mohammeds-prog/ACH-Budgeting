@@ -45,7 +45,7 @@ async function metaSpend(period, token) {
   for (const acct of metaAccounts()) {
     let url = `${GRAPH}/${acct.id}/insights?level=campaign&fields=campaign_name,spend,actions&time_range=${range}&limit=200&access_token=${encodeURIComponent(token)}`
     while (url) {
-      const json = await (await fetch(url)).json()
+      const json = await (await fetch(url, { cache: 'no-store' })).json()
       if (json.error) { errors.push(`${acct.brand}: ${clean(json.error.message)}`); break }
       for (const c of json.data || []) {
         const spend = Number(c.spend || 0)
@@ -76,7 +76,7 @@ function googleConfigured() {
 
 // A short-lived access token from the long-lived refresh token.
 async function googleAccessToken() {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch('https://oauth2.googleapis.com/token', { cache: 'no-store',
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -106,7 +106,7 @@ async function googleSpend(period, accessToken) {
   for (const acct of googleAccounts()) {
     let pageToken
     do {
-      const res = await fetch(`https://googleads.googleapis.com/${GOOGLE_VERSION}/customers/${acct.id}/googleAds:search`, {
+      const res = await fetch(`https://googleads.googleapis.com/${GOOGLE_VERSION}/customers/${acct.id}/googleAds:search`, { cache: 'no-store',
         method: 'POST', headers, body: JSON.stringify({ query, ...(pageToken ? { pageToken } : {}) }),
       })
       const json = await res.json().catch(() => ({}))

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { shortLocation } from '@/lib/constants'
 import { periodLabel, guessRole } from '@/lib/dentrixReports'
 
@@ -22,7 +22,7 @@ const shiftMonth = (p, by) => {
 const shortMonth = (p) => periodLabel(p).replace(/ (\d\d)(\d\d)$/, ' ’$2')
 const lapsedOf = (v) => (v?.lapsed ? Object.values(v.lapsed).reduce((s, n) => s + n, 0) : 0)
 
-export default function RetentionView({ schedule, period, range }) {
+export default function RetentionView({ schedule, period, range, focus }) {
   const months = schedule.months
   const keys = useMemo(() => Object.keys(months).sort(), [months])
   const allTime = period === 'all'
@@ -34,7 +34,18 @@ export default function RetentionView({ schedule, period, range }) {
   const m = months[at]
   const series = useMemo(() => keys.filter((p) => p <= at), [keys, at])
 
-  const [who, setWho] = useState('all')          // all | dentist | hygienist
+  const [who, setWho] = useState('dentist')      // the tab: dentist (Doctors) | hygienist | all
+  const [minPts, setMinPts] = useState(5)         // hide providers with fewer patients than this
+  // What counts as kept: back to the practice (any provider), or back to
+  // the same provider. Changes the %, its sort and "best overall".
+  const [measure, setMeasureState] = useState('any')   // any | them
+  const RATE = measure === 'them' ? 'sameRate' : 'rate'
+  const SCORE = measure === 'them' ? 'scoreThem' : 'score'
+  const setMeasure = (m) => {
+    setMeasureState(m)
+    const swap = m === 'them' ? { rate: 'sameRate', score: 'scoreThem' } : { sameRate: 'rate', scoreThem: 'score' }
+    setSortState((st) => (swap[st.k] ? { ...st, k: swap[st.k] } : st))
+  }
   // Every number sorts: { k, dir } - dir -1 = highest first. Clicking the
   // same one again flips it.
   const [sort, setSortState] = useState({ k: 'base', dir: -1 })
@@ -42,6 +53,28 @@ export default function RetentionView({ schedule, period, range }) {
   const [officeSort, setOfficeSortState] = useState({ k: 'base', dir: -1 })
   const setOfficeSort = (k) => setOfficeSortState((st) => (st.k === k ? { k, dir: -st.dir } : { k, dir: k === 'name' ? 1 : -1 }))
   const [openProv, setOpenProv] = useState(null)
+  const [hiOffice, setHiOffice] = useState(null)
+  // A chat link about one provider: their tab, their row opened and in view.
+  // About an office (or offices): the offices table.
+  useEffect(() => {
+    if (!focus) return
+    const q = String(focus.provider || '').toLowerCase()
+    if (q) {
+      const names = [...new Set(keys.flatMap((p) => Object.keys(months[p].byProv || {})))]
+      const name = names.find((n) => n.toLowerCase() === q) || names.find((n) => n.toLowerCase().includes(q))
+      if (name) {
+        setWho((schedule.specialty?.[name] || '').toLowerCase() === 'hygienist' ? 'hygienist' : 'dentist')
+        setMinPts(5)
+        setOpenProv(name)
+        setTimeout(() => document.getElementById(`ret-prov-${name}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350)
+        return
+      }
+    }
+    if (focus.office || focus.offices) {
+      setHiOffice(focus.office || null)
+      setTimeout(() => document.getElementById(focus.office ? `ret-office-${focus.office}` : 'ret-offices')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350)
+    }
+  }, [focus?.at])
 
   if (!m || (allTime && !schedule.all)) return null
   const when = allTime ? 'all time' : isRange ? range.label : periodLabel(period)
@@ -67,7 +100,7 @@ export default function RetentionView({ schedule, period, range }) {
     .filter(([p]) => recent.has(p) && guessRole(p) !== 'office' && !/^(temp|hygienist|rdh |no provider)/i.test(p))
     .filter(([p]) => who === 'all' || (who === 'hygienist' ? specialtyOf(p) === 'hygienist' : specialtyOf(p) !== 'hygienist'))
     .map(([p, v]) => ({ name: p, specialty: schedule.specialty?.[p] || '', ...rowOf(v, m.byProv[p]) }))
-    .filter((r) => r.base >= 5)
+    .filter((r) => r.base >= minPts)
     .sort(bySort(sort, (r) => r.name))
   const offices = Object.entries(src.byLoc)
     .map(([loc, v]) => ({ loc, ...rowOf(v, m.byLoc[loc]), lapsed: m.byLoc[loc]?.lapsed || { '6-12': 0, '12-18': 0, '18-36': 0 } }))
@@ -77,28 +110,41 @@ export default function RetentionView({ schedule, period, range }) {
     <div className="space-y-4">
       {/* ── Retention: the one number, and how it has moved ── */}
       <RetentionHeadline months={months} series={series} at={at} allTime={allTime} isRange={!!isRange} T={T} avg={avg} periodText={when} />
-      <HowCounted allTime={allTime} asOf={schedule.asOf} when={when} />
 
       {/* ── Providers ── */}
-      <Panel title={`Providers · ${allTime ? 'All time' : when}`}
+      <Panel title={`${who === 'dentist' ? 'Doctors' : who === 'hygienist' ? 'Hygienists' : 'Providers'} · ${allTime ? 'All time' : when}`}
         sub={`Each row answers: ${L.question}`}
-        right={
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Show</span>
-            <Pills value={who} onChange={setWho} options={[['all', 'All providers'], ['dentist', 'Dentists only'], ['hygienist', 'Hygienists only']]} />
-          </div>
-        }>
+        right={<Tabs value={who} onChange={setWho} options={[['dentist', 'Doctors'], ['hygienist', 'Hygienists'], ['all', 'All providers']]} />}>
+        {/* Narrow and rank: a minimum number of patients, and "best overall",
+            which weighs the % by how many patients it rests on. */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pb-3 mb-1 border-b border-slate-100">
+          <span className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-500">At least</span>
+            <Tabs value={minPts} onChange={setMinPts} options={[[5, 'Any'], [50, '50'], [100, '100'], [250, '250']]} />
+            <span className="text-[11px] font-semibold text-slate-500">patients</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-500">Counts as kept</span>
+            <Tabs value={measure} onChange={setMeasure} options={[['any', 'Back to the practice'], ['them', 'Back to the same provider']]} />
+          </span>
+          <button type="button" onClick={() => setSort(SCORE)}
+            title="Ranks by the retention % weighted by how many patients it rests on, so a high % from a handful of patients doesn't outrank a slightly lower % from hundreds."
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${sort.k === SCORE ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'}`}>
+            Best overall <span className="font-normal opacity-80">(patients + retention)</span>
+            {sort.k === SCORE && <span className="text-[9px]">{sort.dir > 0 ? '\u25B2' : '\u25BC'}</span>}
+          </button>
+        </div>
         <div className="divide-y divide-slate-100">
           <div className="hidden md:grid grid-cols-[minmax(0,1.3fr)_110px_minmax(0,3fr)] gap-5 pb-2 items-end">
             <SortHead k="name" sort={sort} onSort={setSort}><span className="text-[10px] tracking-widest text-slate-400">Provider</span></SortHead>
             <ColHead title={L.base} sub={L.baseSub} k="base" sort={sort} onSort={setSort} />
             <span className="block">
-              <ColHead title="Coming back?" sub="" k="rate" sort={sort} onSort={setSort} />
+              <ColHead title={measure === 'them' ? (allTime ? 'Still with them?' : 'Back to them?') : 'Coming back?'} sub="" k={RATE} sort={sort} onSort={setSort} />
               <BarLegend sort={sort} onSort={setSort} labels={allTime ? ['still with them', 'now with someone else', 'stopped coming'] : ['to them', 'to someone else', 'not back']} />
             </span>
           </div>
           {providers.map((v) => (
-            <div key={v.name}>
+            <div key={v.name} id={`ret-prov-${v.name}`} className={focus?.provider && openProv === v.name ? 'rounded-xl ring-2 ring-indigo-300 ring-offset-2' : ''}>
               <button onClick={() => setOpenProv(openProv === v.name ? null : v.name)}
                 className="w-full text-left grid grid-cols-2 md:grid-cols-[minmax(0,1.3fr)_110px_minmax(0,3fr)] gap-x-5 gap-y-2 py-3 items-center hover:bg-slate-50/70 rounded-lg px-1 -mx-1">
                 <span className="min-w-0 col-span-2 md:col-span-1">
@@ -108,17 +154,17 @@ export default function RetentionView({ schedule, period, range }) {
                     <SortNum k="newBack" sort={sort} onSort={setSort}>{num(v.newBack)} came back</SortNum></> : null}</span>
                 </span>
                 <Cell value={num(v.base)} label="patients" />
-                <SplitBar good={v.good} same={v.same} bad={v.bad} goodLabel={L.good} badLabel={L.bad} sameLabel={allTime ? 'still with them' : 'to them'} otherLabel={allTime ? 'now with someone else' : 'to someone else'} sort={sort} onSort={setSort} />
+                <SplitBar good={v.good} same={v.same} bad={v.bad} goodLabel={L.good} badLabel={L.bad} sameLabel={allTime ? 'still with them' : 'to them'} otherLabel={allTime ? 'now with someone else' : 'to someone else'} sort={sort} onSort={setSort} them={measure === 'them'} />
               </button>
               {openProv === v.name && <ProviderDetail name={v.name} months={months} series={series} period={at} />}
             </div>
           ))}
-          {!providers.length && <p className="py-6 text-center text-sm text-slate-400">No providers for this filter.</p>}
+          {!providers.length && <p className="py-6 text-center text-sm text-slate-400">No {who === 'dentist' ? 'doctors' : who === 'hygienist' ? 'hygienists' : 'providers'} with {minPts > 5 ? `${minPts}` : '5'} or more patients here.</p>}
         </div>
         <p className="text-[11px] text-slate-400 mt-3">
           All offices together: {fmtPct(avg)} {L.good}.
           {allTime && ' All time counts every patient a provider has ever seen, so those who have been here longest carry patients who left years ago — pick a month or date range to compare providers fairly.'}
-          {' '}Click a heading, a colour on a bar, or a number to sort by it (again to flip high and low); click a provider{'\u2019'}s name to see their retention month by month.
+          {' '}Click a heading, the % on a row, a colour on a bar, or a number or its share to sort by it (again to flip high and low); click a provider{'\u2019'}s name to see their retention month by month.
         </p>
       </Panel>
 
@@ -126,6 +172,7 @@ export default function RetentionView({ schedule, period, range }) {
       <WhereLost schedule={schedule} allTime={allTime} src={src} when={when} />
 
       {/* ── Offices ── */}
+      <div id="ret-offices" />
       <Panel title="Offices" sub={allTime ? 'Every patient ever seen at each office' : `Patients seen at each office, ${when}`}>
         <div className="grid grid-cols-[minmax(0,0.6fr)_80px_minmax(0,3fr)] gap-4 items-end pb-2">
           <SortHead k="name" sort={officeSort} onSort={setOfficeSort}><span className="text-[10px] tracking-widest text-slate-400">Office</span></SortHead>
@@ -137,7 +184,7 @@ export default function RetentionView({ schedule, period, range }) {
         </div>
         <div className="space-y-3">
           {offices.map((o) => (
-            <div key={o.loc} className="grid grid-cols-[minmax(0,0.6fr)_80px_minmax(0,3fr)] gap-4 items-center">
+            <div key={o.loc} id={`ret-office-${o.loc}`} className={`grid grid-cols-[minmax(0,0.6fr)_80px_minmax(0,3fr)] gap-4 items-center ${hiOffice === o.loc ? 'rounded-xl ring-2 ring-indigo-300 ring-offset-2' : ''}`}>
               <span className="text-sm font-semibold text-slate-800 truncate">{shortLocation(o.loc)}</span>
               <Cell value={num(o.base)} label="patients" />
               <SplitBar good={o.good} same={o.same} bad={o.bad} goodLabel={L.good} badLabel={L.bad} sameLabel={allTime ? 'still at this office' : 'to this office'} otherLabel={allTime ? 'now at another office' : 'to another office'} sort={officeSort} onSort={setOfficeSort} />
@@ -162,21 +209,22 @@ export default function RetentionView({ schedule, period, range }) {
 // the share coming back in large type. With `same`, the coming-back part is
 // split: dark green came back to this provider (or office), light green came
 // back to someone else.
-function SplitBar({ good, same, bad, goodLabel, badLabel, sameLabel, otherLabel, compact, sort, onSort }) {
+function SplitBar({ good, same, bad, goodLabel, badLabel, sameLabel, otherLabel, compact, sort, onSort, them = false }) {
   const total = good + bad
   const split = same != null
   const parts = split
     ? [
-        { k: 'same', n: same, label: sameLabel, cls: 'bg-emerald-600 text-white' },
-        { k: 'other', n: good - same, label: otherLabel, cls: 'bg-emerald-200 text-emerald-900' },
-        { k: 'bad', n: bad, label: badLabel, cls: 'bg-amber-100 text-amber-800 justify-center' },
+        { k: 'same', pk: 'sameRate', n: same, label: sameLabel, cls: 'bg-emerald-600 text-white' },
+        { k: 'other', pk: 'otherRate', n: good - same, label: otherLabel, cls: 'bg-emerald-200 text-emerald-900' },
+        { k: 'bad', pk: 'badRate', n: bad, label: badLabel, cls: 'bg-amber-100 text-amber-800 justify-center' },
       ]
     : [
-        { k: 'same', n: good, label: goodLabel, cls: 'bg-emerald-500 text-white' },
-        { k: 'bad', n: bad, label: badLabel, cls: 'bg-amber-100 text-amber-800 justify-center' },
+        { k: 'same', pk: 'sameRate', n: good, label: goodLabel, cls: 'bg-emerald-500 text-white' },
+        { k: 'bad', pk: 'badRate', n: bad, label: badLabel, cls: 'bg-amber-100 text-amber-800 justify-center' },
       ]
   // Sorting from the bar: a click on a colour sorts the list by it.
   const sortOn = (k) => (onSort ? (e) => { e.stopPropagation(); onSort(k) } : undefined)
+  const rateKey = them ? 'sameRate' : 'rate'
   const w = (n) => (total ? (n / total) * 100 : 0)
   // Each part carries its count when it's wide enough for one; the words
   // (and any count too narrow to fit) are spelled out beneath.
@@ -184,9 +232,10 @@ function SplitBar({ good, same, bad, goodLabel, badLabel, sameLabel, otherLabel,
   const inside = false
   return (
     <span className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
-      <span className={`${compact ? 'text-sm w-10' : 'text-lg w-12'} font-bold tabular-nums text-emerald-700 text-right shrink-0`}
-        title={split ? `${fmtPct(w(good))} came back: ${fmtPct(w(same))} ${sameLabel}, ${fmtPct(w(good - same))} ${otherLabel}` : undefined}>
-        {fmtPct(total ? w(good) : null)}
+      <span onClick={sortOn(rateKey)}
+        className={`${compact ? 'text-sm w-10' : 'text-lg w-12'} font-bold tabular-nums ${them && split ? 'text-emerald-800' : 'text-emerald-700'} text-right shrink-0 ${onSort ? 'cursor-pointer hover:underline underline-offset-4' : ''} ${sort?.k === rateKey ? 'underline decoration-2 underline-offset-4' : ''}`}
+        title={[split ? `${fmtPct(w(good))} came back: ${fmtPct(w(same))} ${sameLabel}, ${fmtPct(w(good - same))} ${otherLabel}` : '', onSort ? 'click to sort by this %' : ''].filter(Boolean).join(' \u00b7 ') || undefined}>
+        {fmtPct(total ? w(them && split ? same : good) : null)}
       </span>
       <span className="flex-1 min-w-0">
         <span className={`flex ${compact ? 'h-5' : 'h-7'} rounded-md overflow-hidden text-[11px] font-semibold`}>
@@ -198,7 +247,7 @@ function SplitBar({ good, same, bad, goodLabel, badLabel, sameLabel, otherLabel,
         </span>
         {!inside && (
           <span className="block text-[11px] text-slate-500 mt-1">
-            {parts.map((x, i) => <span key={x.label}>{i ? ' \u00b7 ' : ''}<span onClick={sortOn(x.k)} className={onSort ? `cursor-pointer hover:text-slate-800 hover:underline underline-offset-2 ${sort?.k === x.k ? 'font-semibold text-slate-800' : ''}` : ''}>{num(x.n)} {x.label}</span></span>)}
+            {parts.map((x, i) => <span key={x.label}>{i ? ' \u00b7 ' : ''}<span onClick={sortOn(x.k)} className={onSort ? `cursor-pointer hover:text-slate-800 hover:underline underline-offset-2 ${sort?.k === x.k ? 'font-semibold text-slate-800' : ''}` : ''}>{num(x.n)} {x.label}</span>{' '}<span onClick={sortOn(x.pk)} title={onSort ? 'Sort by this share' : undefined} className={`tabular-nums ${onSort ? 'cursor-pointer hover:text-slate-800 hover:underline underline-offset-2' : ''} ${sort?.k === x.pk ? 'font-semibold text-slate-800' : 'text-slate-400'}`}>({fmtPct(total ? w(x.n) : null)}){sort?.k === x.pk ? (sort.dir > 0 ? '\u25B2' : '\u25BC') : ''}</span></span>)}
           </span>
         )}
       </span>
@@ -277,6 +326,14 @@ function WhereLost({ schedule, allTime, src, when }) {
 }
 
 // -- Sorting ----------------------------------------------------------------
+// "Best overall": the lower end of the 95% range for the retention rate
+// (Wilson score). Few patients → wide range → lower score; so 90% of 21
+// ranks below 85% of 900.
+function wilsonLow(k, n) {
+  if (!n) return 0
+  const z = 1.96, p = k / n, z2 = z * z
+  return (p + z2 / (2 * n) - z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n)) / (1 + z2 / n)
+}
 const SORT_VALUE = {
   base: (r) => r.base,
   rate: (r) => (r.base ? r.good / r.base : 0),
@@ -284,6 +341,10 @@ const SORT_VALUE = {
   other: (r) => (r.same != null ? r.good - r.same : 0),
   bad: (r) => r.bad,
   badRate: (r) => (r.base ? r.bad / r.base : 0),
+  sameRate: (r) => (r.base ? (r.same ?? r.good) / r.base : 0),
+  score: (r) => wilsonLow(r.good, r.base),
+  scoreThem: (r) => wilsonLow(r.same ?? r.good, r.base),
+  otherRate: (r) => (r.base && r.same != null ? (r.good - r.same) / r.base : 0),
   newPts: (r) => r.newPts || 0,
   newBack: (r) => r.newBack || 0,
 }
@@ -369,37 +430,6 @@ function SortHead({ k, sort, onSort, right, children }) {
   )
 }
 
-// Plain-words definition of the numbers on this page, for the period shown.
-function HowCounted({ allTime, asOf, when }) {
-  const items = allTime ? [
-    ['Still coming', 'the patient had a completed visit in the last 18 months, or has an appointment booked after ' + asOf + '. 18 months is the usual dental definition of an “active patient” (Dentrix’s default too).'],
-    ['Stopped coming', 'no completed visit in the last 18 months and nothing booked.'],
-    ['Still with them', 'of those still coming, their latest dentist (or hygienist) visit or booking is with this same provider; “now with someone else” means it’s with another one.'],
-  ] : [
-    ['Came back or booked', `the patient was seen in ${when} and afterwards either had a completed visit (at any later date) or has an appointment booked after ${asOf}.`],
-    ['Not back', 'no completed visit since and nothing booked. Broken, no-show and cancelled appointments do not count as coming back.'],
-    ['To them / someone else', 'whether that next visit or booking is with the same provider (dentist for a dentist, hygienist for a hygienist) or the same office.'],
-  ]
-  return (
-    <details className="group rounded-2xl bg-white/70 border border-slate-200 px-5 py-3">
-      <summary className="cursor-pointer list-none flex items-center justify-between gap-3 text-[13px] font-semibold text-slate-700">
-        <span>How retention is counted</span>
-        <span className="text-[11px] font-normal text-slate-400 group-open:hidden">Show {'▾'}</span>
-        <span className="text-[11px] font-normal text-slate-400 hidden group-open:inline">Hide {'▴'}</span>
-      </summary>
-      <div className="mt-2.5 space-y-1.5 text-[12.5px] text-slate-600 leading-snug">
-        <p>From the Dentrix schedule: every appointment is tied to the patient{'’'}s chart number. A <b className="font-semibold text-slate-800">completed visit</b> is an appointment marked Complete, Checkout, Chair, Ready, Here or Late.</p>
-        <ul className="space-y-1">
-          {items.map(([k, v]) => <li key={k}><b className="font-semibold text-slate-800">{k}</b> {'—'} {v}</li>)}
-        </ul>
-        <p className="text-[11.5px] text-slate-500">A patient counts for every provider and office that saw them, so the rows add up to more than the total.
-          {!allTime && ' For recent months most patients are counted because they have something booked — they haven’t had time to come back yet.'}
-          {' '}Patients whose treatment is finished and don{'’'}t need to return (emergency-only, referrals, moved away) currently count as not coming back.</p>
-      </div>
-    </details>
-  )
-}
-
 function Panel({ title, sub, right, children }) {
   return (
     <div className="glass-card rounded-2xl px-5 py-4">
@@ -438,12 +468,13 @@ function Cell({ value, label, tone = 'text-slate-800' }) {
   )
 }
 
-function Pills({ value, onChange, options }) {
+// Tabs over the providers list: Doctors | Hygienists | All providers.
+function Tabs({ value, onChange, options }) {
   return (
-    <div className="inline-flex rounded-full border border-slate-200 bg-white p-0.5">
+    <div role="tablist" className="inline-flex gap-1 p-1 rounded-xl bg-slate-100">
       {options.map(([k, l]) => (
-        <button key={k} onClick={() => onChange(k)}
-          className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${value === k ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-800'}`}>
+        <button key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)}
+          className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${value === k ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
           {l}
         </button>
       ))}

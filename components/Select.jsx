@@ -2,8 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 
-export default function Select({ value, onChange, options, placeholder = 'Select…', wide, full }) {
+// A search box shows at the top of long lists (over 10 options), or with
+// `searchable`. Every word typed must appear in the label, in any order, so
+// "krupa patel" finds "Patel, Krupa".
+export default function Select({ value, onChange, options, placeholder = 'Select…', wide, full, searchable }) {
   const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const searchRef         = useRef(null)
   const [rect, setRect]   = useState(null)
   const btnRef            = useRef(null)
   const dropRef           = useRef(null)
@@ -37,10 +42,16 @@ export default function Select({ value, onChange, options, placeholder = 'Select
 
   function handleOpen() {
     if (btnRef.current) setRect(btnRef.current.getBoundingClientRect())
+    setQuery('')
     setOpen((v) => !v)
   }
 
   const selected = options.find((o) => o.value === value)
+  const canSearch = searchable ?? options.length > 10
+  const words = query.toLowerCase().split(/[\s,]+/).filter(Boolean)
+  const shown = words.length ? options.filter((o) => { const l = String(o.label).toLowerCase(); return words.every((w) => l.includes(w)) }) : options
+  useEffect(() => { if (open && canSearch) setTimeout(() => searchRef.current?.focus(), 0) }, [open, canSearch])
+  const pick = (v) => { onChange(v); setOpen(false); setQuery('') }
 
   return (
     <div className={full ? 'relative w-full' : 'relative'}>
@@ -73,10 +84,24 @@ export default function Select({ value, onChange, options, placeholder = 'Select
             boxShadow: '0 8px 24px rgba(148,163,184,0.25)',
           }}
         >
-          <div className="py-1 max-h-52 overflow-y-auto">
-            {placeholder && (
+          {canSearch && (
+            <div className="p-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 focus-within:border-indigo-300 focus-within:bg-white">
+                <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="m20 20-3.5-3.5" /></svg>
+                <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') { setOpen(false); setQuery('') }
+                    if (e.key === 'Enter' && shown[0]) { e.preventDefault(); pick(shown[0].value) }
+                  }}
+                  className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none" />
+                {query && <button type="button" onMouseDown={(e) => { e.preventDefault(); setQuery(''); searchRef.current?.focus() }} className="text-slate-400 hover:text-slate-600 text-xs" aria-label="Clear search">{'✕'}</button>}
+              </div>
+            </div>
+          )}
+          <div className={`py-1 ${canSearch ? 'max-h-64' : 'max-h-52'} overflow-y-auto`}>
+            {placeholder && !query && (
               <div
-                onMouseDown={(e) => { e.preventDefault(); onChange(''); setOpen(false) }}
+                onMouseDown={(e) => { e.preventDefault(); pick('') }}
                 className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
                   !value ? 'text-indigo-700 bg-indigo-50' : 'text-slate-400 hover:bg-violet-50 hover:text-slate-700'
                 }`}
@@ -84,10 +109,10 @@ export default function Select({ value, onChange, options, placeholder = 'Select
                 {placeholder}
               </div>
             )}
-            {options.map((opt) => (
+            {shown.map((opt) => (
               <div
                 key={opt.value}
-                onMouseDown={(e) => { e.preventDefault(); onChange(opt.value); setOpen(false) }}
+                onMouseDown={(e) => { e.preventDefault(); pick(opt.value) }}
                 className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
                   value === opt.value ? 'text-indigo-700 bg-indigo-50' : 'text-slate-700 hover:bg-violet-50'
                 }`}
@@ -95,6 +120,7 @@ export default function Select({ value, onChange, options, placeholder = 'Select
                 {opt.label}
               </div>
             ))}
+            {canSearch && !shown.length && <div className="px-3 py-3 text-sm text-slate-400">No matches for {'“'}{query}{'”'}</div>}
           </div>
         </div>
       )}

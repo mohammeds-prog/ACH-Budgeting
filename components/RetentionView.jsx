@@ -149,9 +149,7 @@ export default function RetentionView({ schedule, period, range, focus }) {
                 className="w-full text-left grid grid-cols-2 md:grid-cols-[minmax(0,1.3fr)_110px_minmax(0,3fr)] gap-x-5 gap-y-2 py-3 items-center hover:bg-slate-50/70 rounded-lg px-1 -mx-1">
                 <span className="min-w-0 col-span-2 md:col-span-1">
                   <span className="block text-sm font-semibold text-slate-800 truncate">{v.name}</span>
-                  <span className="block text-[11px] text-slate-400">{v.specialty}{v.newPts ? <>{' \u00b7 '}
-                    <SortNum k="newPts" sort={sort} onSort={setSort}>{num(v.newPts)} new patient{v.newPts === 1 ? '' : 's'}</SortNum>{', '}
-                    <SortNum k="newBack" sort={sort} onSort={setSort}>{num(v.newBack)} came back</SortNum></> : null}</span>
+                  <span className="block text-[11px] text-slate-400">{v.specialty}</span>
                 </span>
                 <Cell value={num(v.base)} label="patients" />
                 <SplitBar good={v.good} same={v.same} bad={v.bad} goodLabel={L.good} badLabel={L.bad} sameLabel={allTime ? 'still with them' : 'to them'} otherLabel={allTime ? 'now with someone else' : 'to someone else'} sort={sort} onSort={setSort} them={measure === 'them'} />

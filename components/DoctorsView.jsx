@@ -39,6 +39,7 @@ export default function DoctorsView() {
   const [period, setPeriod] = useState('')
   const [reload, setReload] = useState(0)
   const [sort, setSort] = useState({ key: 'gross', dir: -1 })
+  const [openDoc, setOpenDoc] = useState(null)   // the doctor whose report lines are open
 
   useEffect(() => {
     let cancelled = false
@@ -186,9 +187,17 @@ export default function DoctorsView() {
           {sorted.map((d) => {
             const few = d.hours > 0 && d.days < MIN_DAYS
             return (
-              <div key={d.name} data-doctor={d.name} className={`${ROW} gap-x-4 gap-y-1 py-2.5 items-center ${focusDoc && d.name.toLowerCase().includes(focusDoc.q) ? 'rounded-xl ring-2 ring-indigo-300 ring-offset-2 bg-indigo-50/40' : ''}`}>
+              <div key={d.name}>
+              <div data-doctor={d.name} role="button" tabIndex={0} aria-expanded={openDoc === d.name}
+                onClick={() => setOpenDoc(openDoc === d.name ? null : d.name)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenDoc(openDoc === d.name ? null : d.name) } }}
+                title="Click to see the report lines and hours behind these numbers"
+                className={`${ROW} gap-x-4 gap-y-1 py-2.5 items-center cursor-pointer rounded-lg hover:bg-slate-50/80 ${openDoc === d.name ? 'bg-indigo-50/50' : ''} ${focusDoc && d.name.toLowerCase().includes(focusDoc.q) ? 'rounded-xl ring-2 ring-indigo-300 ring-offset-2 bg-indigo-50/40' : ''}`}>
                 <span className="min-w-0 col-span-2 md:col-span-1">
-                  <span className="block text-sm font-semibold truncate text-slate-800">{d.name}</span>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                    <svg className={`w-3 h-3 shrink-0 text-slate-400 transition-transform ${openDoc === d.name ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m9 6 6 6-6 6" /></svg>
+                    <span className="truncate">{d.name}</span>
+                  </span>
                   <span className="block text-[11px] text-slate-400 truncate">
                     {Object.entries(d.offices).filter(([, v]) => Math.abs(v.gross) >= 1 || v.hours > 0)
                       .sort((a, b) => b[1].gross - a[1].gross).map(([o]) => officeName(o)).join(', ')}
@@ -207,6 +216,8 @@ export default function DoctorsView() {
                 </span>
                 <Rate v={d.perHour} few={few} days={d.days} none={!d.hours} />
                 <Rate v={d.perDay} few={few} days={d.days} none={!d.hours} />
+              </div>
+              {openDoc === d.name && <DoctorDetail d={d} period={period} />}
               </div>
             )
           })}
@@ -248,6 +259,87 @@ export default function DoctorsView() {
           </div>
         </Box>
       )}
+    </div>
+  )
+}
+
+// The figures behind one doctor's row: their lines of the Dentrix production
+// report, and their hours day by day from the Doctor Hours sheet.
+function DoctorDetail({ d, period }) {
+  const R = d.report.reduce((a, r) => ({ procedures: a.procedures + r.procedures, credit: a.credit + r.credit, charge: a.charge + r.charge, total: a.total + r.total }), { procedures: 0, credit: 0, charge: 0, total: 0 })
+  const cents = (n) => `${n < 0 ? '-' : ''}$${Math.abs(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const day = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+  const notes = d.log.filter((x) => x.note).length
+  return (
+    <div className="mt-1 mb-3 grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-4 rounded-xl border border-slate-200 bg-white/80 p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Dentrix production report {'\u00b7'} {periodLabel(period)}</p>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full text-xs tabular-nums">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                <th className="text-left font-semibold py-1.5 pr-3">Location</th>
+                <th className="text-right font-semibold py-1.5 px-2">Procedures</th>
+                <th className="text-right font-semibold py-1.5 px-2">Credit adj.</th>
+                <th className="text-right font-semibold py-1.5 px-2">Charge adj.</th>
+                <th className="text-right font-semibold py-1.5 pl-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.report.map((r) => (
+                <tr key={r.location} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{r.location}</td>
+                  <td className="py-1.5 px-2 text-right text-slate-800">{cents(r.procedures)}</td>
+                  <td className="py-1.5 px-2 text-right text-slate-500">{cents(r.credit)}</td>
+                  <td className="py-1.5 px-2 text-right text-slate-500">{cents(r.charge)}</td>
+                  <td className="py-1.5 pl-2 text-right text-slate-800">{cents(r.total)}</td>
+                </tr>
+              ))}
+              <tr className="font-bold text-slate-900">
+                <td className="py-1.5 pr-3">Total</td>
+                <td className="py-1.5 px-2 text-right">{cents(R.procedures)}</td>
+                <td className="py-1.5 px-2 text-right">{cents(R.credit)}</td>
+                <td className="py-1.5 px-2 text-right">{cents(R.charge)}</td>
+                <td className="py-1.5 pl-2 text-right">{cents(R.total)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[10.5px] text-slate-400 leading-relaxed">
+          Gross on the row = <b className="font-semibold text-slate-500">Procedures</b>. Net = <b className="font-semibold text-slate-500">Total</b> (procedures + credit and charge adjustments, as Dentrix adds them).
+        </p>
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Doctor Hours sheet {'\u00b7'} {d.hours > 0 ? `${hrs(d.hours)} over ${d.days} day${d.days === 1 ? '' : 's'}` : 'no hours'}</p>
+        {d.log.length ? (
+          <div className="mt-2 max-h-64 overflow-y-auto pr-1">
+            <table className="w-full text-xs tabular-nums">
+              <thead className="sticky top-0 bg-white">
+                <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                  <th className="text-left font-semibold py-1.5 pr-3">Day</th>
+                  <th className="text-left font-semibold py-1.5 px-2">Office</th>
+                  <th className="text-right font-semibold py-1.5 pl-2">Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.log.map((x, i) => (
+                  <tr key={`${x.date}-${x.office}-${i}`} className="border-b border-slate-100">
+                    <td className="py-1.5 pr-3 text-slate-700 whitespace-nowrap">{day(x.date)}{x.note && <span className="ml-1.5 text-[10px] font-semibold text-amber-600" title="From a note under the month, not a column">note</span>}</td>
+                    <td className="py-1.5 px-2 text-slate-500 whitespace-nowrap">{officeName(x.office)}</td>
+                    <td className="py-1.5 pl-2 text-right text-slate-800">{x.hours}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="mt-2 text-xs text-slate-400">This doctor has no hours in the sheet for {periodLabel(period)}.</p>}
+        {d.sheetNames.length > 0 && (
+          <p className="mt-2 text-[10.5px] text-slate-400 leading-relaxed">
+            In the sheet as {d.sheetNames.map((n) => `\u201c${n.replace(/\s+/g, ' ').trim()}\u201d`).join(', ')}.{notes ? ` ${notes} day${notes === 1 ? '' : 's'} came from notes under the month.` : ''}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

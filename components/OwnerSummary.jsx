@@ -100,8 +100,9 @@ export default function OwnerSummary({ onGo }) {
         options={[{ value: '', label: 'All offices' }, ...options.locations.map((l) => ({ value: l, label: shortLocation(l) }))]} />
       <Select value={provider} onChange={(v) => { setProvider(v || ''); if (v) setOffice('') }} placeholder={null} wide
         options={[{ value: '', label: 'All providers' },
-          ...options.providers.filter((x) => x.role === 'Dentist').map((x) => ({ value: x.name, label: x.name })),
-          ...options.providers.filter((x) => x.role === 'Hygienist').map((x) => ({ value: x.name, label: `${x.name} \u00b7 hygiene` }))]} />
+          // A to Z; hygienists keep their tag.
+          ...[...options.providers].sort((x, y) => x.name.localeCompare(y.name))
+            .map((x) => ({ value: x.name, label: x.role === 'Hygienist' ? `${x.name} \u00b7 hygiene` : x.name }))]} />
       <Select value={pick} onChange={(v) => v && setPick(v)} placeholder={null} wide
         options={[
           ...presets.map(({ value, label }) => ({ value, label })),
